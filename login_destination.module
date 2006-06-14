@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * Implementation of hook_help().
+ */
+function login_destination_help($section) {
+  switch ($section) {
+    case 'admin/modules#description':
+      return t('Force users to certain page(s) upon login.');
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function login_destination_form_alter($form_id, &$form) {
+  if ($form_id == 'user_login_block' || $form_id == 'user_login') {
+    $form['#action'] = login_destination_get_destination();
+  }
+}
+
+function login_destination_get_destination() {
+  // customize the path as desired. 
+  $path = 'node';
+  return url('user', "destination=$path");
+}
