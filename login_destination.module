@@ -1,26 +1,138 @@
 <?php
 
-/**
- * Implementation of hook_help().
- */
-function login_destination_help($section) {
-  switch ($section) {
-    case 'admin/modules#description':
-      return t('Force users to certain page(s) upon login.');
-  }
-}
+// Destination constants
+define('LOGIN_DEST_STATIC', 'static');
+define('LOGIN_DEST_SNIPPET', 'snippet');
+
+// Condition constants
+define('LOGIN_COND_ALWAYS', 'always');
+define('LOGIN_COND_PAGES', 'pages');
+define('LOGIN_COND_SNIPPET', 'snippet');
 
 /**
  * Implementation of hook_form_alter().
  */
 function login_destination_form_alter($form_id, &$form) {
-  if ($form_id == 'user_login_block' || $form_id == 'user_login') {
+  if (($form_id == 'user_login_block' || $form_id == 'user_login') && login_destination_apply_redirect()) {
     $form['#action'] = login_destination_get_destination();
   }
 }
 
 function login_destination_get_destination() {
-  // customize the path as desired. 
-  $path = 'node';
-  return url('user', "destination=$path");
+  $path = 'login_redirect';
+  return url($_GET['q'], "destination=$path");
 }
+
+/**
+ * Implementation of hook_menu().
+ */
+function login_destination_menu($my_cache) {
+  if(!$my_cache) {
+    $items[] = array(
+      'path' => 'admin/user/login_destination',
+      'title' => t('Login destination'),
+      'description' => t('Configure where user will go after login.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('login_destination_admin_settings')
+    );
+    $items[] = array(
+      'path' => 'login_redirect',
+      'callback' => 'login_destination_redirect',
+      'access' => TRUE,
+      'type' => MENU_CALLBACK
+    );
+  }
+
+  return $items;
+}
+
+function login_destination_admin_settings() {
+  $form = array();
+
+  $form['destination'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('URL destination settings'),
+    '#description' => t('This is to specify where exactly user should be redirected upon login.')
+  );
+  $form['destination']['ld_url_type'] = array(
+    '#type' => 'radios',
+    '#default_value' => variable_get('ld_url_type', LOGIN_DEST_STATIC),
+    '#options' => array(
+      LOGIN_DEST_STATIC => t('Static URL'),
+      LOGIN_DEST_SNIPPET => t('PHP snippet')
+    )
+  );
+  $form['destination']['ld_url_destination'] = array(
+    '#type' => 'textarea',
+    '#default_value' => variable_get('ld_url_destination', 'user'),
+    '#title' => t('URL'),
+    '#rows' => 4,
+    '#description' =>
+      t('<b>Static URL mode:</b> Enter a static path. Example paths are %ex1 or %ex2.', array('%ex1' => 'node/add', '%ex2' => 'workspace')). '<br/>'.
+      t('<b>PHP snippet mode:</b> Enter PHP code to evaluate path. It should return string value (<b>NO %php tags!</b>).', array('%php' => '<?php ?>')),
+  );
+
+  $form['condition'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Redirection condition settings'),
+    '#description' => t('Set the condition to determine whether redirection should happen or not.')
+  );
+  $form['condition']['ld_condition_type'] = array(
+    '#type' => 'radios',
+    '#default_value' => variable_get('ld_condition_type', 'always'),
+    '#options' => array(
+      LOGIN_COND_ALWAYS => t('Always'),
+      LOGIN_COND_PAGES => t('List of paths'),
+      LOGIN_COND_SNIPPET => t('PHP snippet')
+    )
+  );
+  $form['condition']['ld_condition_snippet'] = array(
+    '#type' => 'textarea',
+    '#default_value' => variable_get('ld_condition_snippet', ''),
+    '#title' => t('Redirect condition'),
+    '#rows' => 4,
+    '#description' =>
+      t('<b>Always:</b> Redirection happens always. Redirect condition field is ignored.'). '<br/>'.
+      t('<b>List of paths mode:</b> Enter a list of paths, one path per one line. Redirection will happen only when logging from specified pages. Example paths are %ex1 or %ex2.', array('%ex1' => '<front>', '%ex2' => 'user/login')). '<br/>'.
+      t('<b>PHP snippet mode:</b> Enter PHP code to find should redirection happen or not (<b>NO %php tags!</b>). It should return boolean value.', array('%php' => '<?php ?>'))
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Callback for login_redirect URL.
+ */
+function login_destination_redirect() {
+  $destination = variable_get('ld_url_destination', 'user');
+  $url = (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) ? drupal_eval('<?php '. $destination. ' ?>') : $destination;
+
+  drupal_goto($url);
+}
+
+/**
+ * A helper function to determine whether redirection should happen.
+ *
+ * @return bool TRUE - apply redirect, FALSE - not to apply redirect.
+ */
+function login_destination_apply_redirect() {
+  $result = FALSE;
+
+  $mode = variable_get('ld_condition_type', LOGIN_COND_ALWAYS);
+  if (LOGIN_COND_ALWAYS == $mode) {
+    $result = TRUE;
+  } else {
+    $cond = variable_get('ld_condition_snippet', '');
+    if (LOGIN_COND_PAGES == $mode) {
+      $paths = split("[\n\r]", $cond);
+      $result = in_array($_GET['q'], $paths);
+    } elseif (LOGIN_COND_SNIPPET == $mode) {
+      $destination = variable_get('ld_url_destination', 'user');
+      $result = drupal_eval('<?php '. $cond. ' ?>');
+    }
+  }
+
+  return $result;
+}
+
+?>
