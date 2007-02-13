@@ -1,4 +1,3 @@
 name = Login Destination
 description = Controls which URL users will be redirected upon login.
-package = Core - optional
 version = VERSION
