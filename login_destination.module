@@ -128,6 +128,9 @@ function login_destination_apply_redirect() {
     if (LOGIN_COND_PAGES == $mode) {
       $paths = split("[\n\r]", $cond);
       $result = in_array($_GET['q'], $paths);
+      if (!$result) {
+        $result = in_array(drupal_get_path_alias($_GET['q']), $paths);
+      }
     } elseif (LOGIN_COND_SNIPPET == $mode) {
       $destination = variable_get('ld_url_destination', 'user');
       $result = drupal_eval('<?php '. $cond. ' ?>');
