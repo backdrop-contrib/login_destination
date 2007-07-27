@@ -20,6 +20,7 @@ function login_destination_form_alter($form_id, &$form) {
 
 function login_destination_get_destination() {
   $path = 'login_redirect';
+//drupal_set_message("login_destination_get_destination: url: ". url($_GET['q'], "destination=$path"));
   return url($_GET['q'], "destination=$path");
 }
 
@@ -71,7 +72,7 @@ function login_destination_admin_settings() {
     '#rows' => 4,
     '#description' =>
       t('<b>Static URL mode:</b> Enter a static path. Example paths are %ex1 or %ex2.', array('%ex1' => 'node/add', '%ex2' => 'workspace')). '<br/>'.
-      t('<b>PHP snippet mode:</b> Enter PHP code to evaluate path. It should return string value (<b>NO %php tags!</b>).', array('%php' => '<?php ?>')),
+      t("<b>PHP snippet mode:</b> Enter PHP code to evaluate path (<b>NO %php tags!</b>). It should return either a string value or an array('path' => path to redirect, 'query' => parameters).", array('%php' => '<?php ?>')),
   );
 
   $form['condition'] = array(
@@ -107,9 +108,20 @@ function login_destination_admin_settings() {
  */
 function login_destination_redirect() {
   $destination = variable_get('ld_url_destination', 'user');
-  $url = (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) ? drupal_eval('<?php '. $destination. ' ?>') : $destination;
 
-  drupal_goto($url);
+  if (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) {
+    ob_start();
+    $url = eval($destination);
+    ob_end_clean();
+  } else {
+    $url = $destination;
+  }
+
+  if (is_array($url)) {
+    drupal_goto($url['path'], $url['query']);
+  } else {
+    drupal_goto($url, $query);
+  }
 }
 
 /**
@@ -128,9 +140,6 @@ function login_destination_apply_redirect() {
     if (LOGIN_COND_PAGES == $mode) {
       $paths = split("[\n\r]", $cond);
       $result = in_array($_GET['q'], $paths);
-      if (!$result) {
-        $result = in_array(drupal_get_path_alias($_GET['q']), $paths);
-      }
     } elseif (LOGIN_COND_SNIPPET == $mode) {
       $destination = variable_get('ld_url_destination', 'user');
       $result = drupal_eval('<?php '. $cond. ' ?>');
@@ -139,5 +148,3 @@ function login_destination_apply_redirect() {
 
   return $result;
 }
-
-?>

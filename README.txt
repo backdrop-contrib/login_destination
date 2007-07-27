@@ -2,14 +2,17 @@ Description
 -----------------
 This module controls where users go after logging in.
 You can configure login destination on a settings page.
-It will be either static URL or a PHP snippet evaluating your own site's logic.
-You can also configure which pages redirection is applied.
 
+It will be either static URL or a PHP snippet evaluating your own site's logic.
+You can also use alias URLs instead of internal paths.
+If you want to redirect a user to an URL with a query (parameters specified in GET),
+you should return an array instead of a string of the following format:
+    return array('path' => 'node/add/video', 'query' => 'param1=100&param2=200');
+
+You can also configure from which pages redirection is applied.
 To achieve this you can specify either a list of URLs or a PHP snippet to build this list dynamically.
 So, you can redirect user to various pages depending on which pages they are logging from.
 
-You can also use alias URLs instead of internal paths.
-  
 
 Configuration
 -----------------
@@ -27,8 +30,8 @@ PHP snippet for redirection URL should return a string. Here is an example:
     // Redirect the Administrator
     return 'admin';
   } elseif ($user->uid == 2) {
-    // Redirect the Site Owner to the 'create content' page
-    return 'node/add';
+    // Redirect the Site Owner to 'create video' page
+    return array('path' => 'node/add/video', 'query' => 'param1=100&param2=200');
   } else {
     return 'node';
   }
