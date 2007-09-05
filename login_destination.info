@@ -1,2 +1,4 @@
 name = Login Destination
 description = Controls which URL users will be redirected upon login.
+version = VERSION
+core = 6.x

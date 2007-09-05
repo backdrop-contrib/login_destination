@@ -12,7 +12,7 @@ define('LOGIN_COND_SNIPPET', 'snippet');
 /**
  * Implementation of hook_form_alter().
  */
-function login_destination_form_alter($form_id, &$form) {
+function login_destination_form_alter(&$form, $form_state, $form_id) {
   if (($form_id == 'user_login_block' || $form_id == 'user_login') && login_destination_apply_redirect()) {
     $form['#action'] = login_destination_get_destination();
   }
@@ -20,31 +20,26 @@ function login_destination_form_alter($form_id, &$form) {
 
 function login_destination_get_destination() {
   $path = 'login_redirect';
-//drupal_set_message("login_destination_get_destination: url: ". url($_GET['q'], "destination=$path"));
-  return url($_GET['q'], "destination=$path");
+  return url($_GET['q'], array('query' => "destination=$path"));
 }
 
 /**
  * Implementation of hook_menu().
  */
-function login_destination_menu($my_cache) {
-  $items = array();
+function login_destination_menu() {
 
-  if ($my_cache) {
-    $items[] = array(
-      'path' => 'admin/user/login_destination',
-      'title' => t('Login destination'),
-      'description' => t('Configure where user will go after login.'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('login_destination_admin_settings')
-    );
-    $items[] = array(
-      'path' => 'login_redirect',
-      'callback' => 'login_destination_redirect',
-      'access' => TRUE,
-      'type' => MENU_CALLBACK
-    );
-  }
+  $items['admin/user/login_destination'] = array(
+    'title' => 'Login destination',
+    'description' => 'Configure where user will go after login.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('login_destination_admin_settings'),
+  );
+
+  $items['login_redirect'] = array(
+    'page callback' => 'login_destination_redirect',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK
+  );
 
   return $items;
 }
@@ -116,11 +111,10 @@ function login_destination_redirect() {
   } else {
     $url = $destination;
   }
-
   if (is_array($url)) {
     drupal_goto($url['path'], $url['query']);
   } else {
-    drupal_goto($url, $query);
+    drupal_goto($url);
   }
 }
 
