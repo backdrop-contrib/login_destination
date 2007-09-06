@@ -14,13 +14,13 @@ define('LOGIN_COND_SNIPPET', 'snippet');
  */
 function login_destination_form_alter(&$form, $form_state, $form_id) {
   if (($form_id == 'user_login_block' || $form_id == 'user_login') && login_destination_apply_redirect()) {
+    $_SESSION['login_page'] = $_GET['q'];
     $form['#action'] = login_destination_get_destination();
   }
 }
 
 function login_destination_get_destination() {
-  $path = 'login_redirect';
-  return url($_GET['q'], array('query' => "destination=$path"));
+  return url($_GET['q'], array('query' => "destination=login_redirect"));
 }
 
 /**
@@ -51,6 +51,12 @@ function login_destination_admin_settings() {
     '#type' => 'fieldset',
     '#title' => t('URL destination settings'),
     '#description' => t('This is to specify where exactly user should be redirected upon login.')
+  );
+  $form['destination']['ld_destination'] = array(
+    '#type' => 'checkbox',
+    '#default_value' => variable_get('ld_destination', TRUE),
+    '#title' => t('Preserve destination'),
+    '#description' => t("If checked, 'destination=' parameter specified in the URL will be used to perform redirection. Otherwise, redirection will be always performed according to the settings below."),
   );
   $form['destination']['ld_url_type'] = array(
     '#type' => 'radios',
@@ -111,6 +117,7 @@ function login_destination_redirect() {
   } else {
     $url = $destination;
   }
+
   if (is_array($url)) {
     drupal_goto($url['path'], $url['query']);
   } else {
@@ -124,21 +131,22 @@ function login_destination_redirect() {
  * @return bool TRUE - apply redirect, FALSE - not to apply redirect.
  */
 function login_destination_apply_redirect() {
-  $result = FALSE;
+
+  if (!empty($_GET['destination']) && variable_get('ld_destination', TRUE)) {
+    return FALSE;
+  }
 
   $mode = variable_get('ld_condition_type', LOGIN_COND_ALWAYS);
   if (LOGIN_COND_ALWAYS == $mode) {
-    $result = TRUE;
+    return TRUE;
   } else {
     $cond = variable_get('ld_condition_snippet', '');
     if (LOGIN_COND_PAGES == $mode) {
       $paths = split("[\n\r]", $cond);
-      $result = in_array($_GET['q'], $paths);
+      return in_array($_GET['q'], $paths);
     } elseif (LOGIN_COND_SNIPPET == $mode) {
       $destination = variable_get('ld_url_destination', 'user');
-      $result = drupal_eval('<?php '. $cond. ' ?>');
+      return drupal_eval('<?php '. $cond. ' ?>');
     }
   }
-
-  return $result;
 }
