@@ -42,6 +42,14 @@ PHP snippet for Redirection condition should return boolean value. An example is
 
 Don't put PHP tags when creating snippets.
 
+Turn on "Preserve destination" feature to make module sensible to destination parameter.
+When login from the path with specified destination (ex: 'any-page?destination=node/18')
+you will be taken to node/18 instead of the URL specified in login_destination settings.
+
+$_SESSION['login_page'] was added and stores the page you were before clicking login form button.
+You can use it to determine the page you logged from instead of $_GET['q'] because $_GET['q']
+always equals to 'login_redirect'. 
+
 
 Authors
 -----------------
