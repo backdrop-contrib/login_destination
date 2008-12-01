@@ -1,4 +1,10 @@
 <?php
+// $Id$
+
+/**
+ * @file
+ * Control where users are directed to once they login
+ */
 
 // Destination constants
 define('LOGIN_DEST_STATIC', 'static');
@@ -9,18 +15,14 @@ define('LOGIN_COND_ALWAYS', 'always');
 define('LOGIN_COND_PAGES', 'pages');
 define('LOGIN_COND_SNIPPET', 'snippet');
 
-/**
- * Implementation of hook_form_alter().
- */
-function login_destination_form_alter(&$form, $form_state, $form_id) {
-  if (($form_id == 'user_login_block' || $form_id == 'user_login') && login_destination_apply_redirect()) {
-    $_SESSION['login_page'] = $_GET['q'];
-    $form['#action'] = login_destination_get_destination();
-  }
-}
+// Permissions
+define('LOGIN_DEST_PERM_ADMIN', 'administer login destination');
 
-function login_destination_get_destination() {
-  return url($_GET['q'], array('query' => "destination=login_redirect"));
+/**
+* Implementation of hook_perm().
+*/
+function login_destination_perm() {
+  return array(LOGIN_DEST_PERM_ADMIN);
 }
 
 /**
@@ -29,16 +31,12 @@ function login_destination_get_destination() {
 function login_destination_menu() {
 
   $items['admin/user/login_destination'] = array(
-    'title' => 'Login destination',
-    'description' => 'Configure where user will go after login.',
+    'title' => 'Login Destination',
+    'description' => 'Control where users are directed to once they login.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_admin_settings'),
-  );
-
-  $items['login_redirect'] = array(
-    'page callback' => 'login_destination_redirect',
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK
+    'access arguments' => array(LOGIN_DEST_PERM_ADMIN),
+    'type' => MENU_NORMAL_ITEM
   );
 
   return $items;
@@ -73,7 +71,8 @@ function login_destination_admin_settings() {
     '#rows' => 4,
     '#description' =>
       t('<b>Static URL mode:</b> Enter a static path. Example paths are %ex1 or %ex2.', array('%ex1' => 'node/add', '%ex2' => 'workspace')). '<br/>'.
-      t("<b>PHP snippet mode:</b> Enter PHP code to evaluate path (<b>NO %php tags!</b>). It should return either a string value or an array('path' => path to redirect, 'query' => parameters).", array('%php' => '<?php ?>')),
+      t("<b>PHP snippet mode:</b> Enter PHP code to evaluate path (<b>NO %php tags!</b>). It should return either a string value or an <b>array('path' => path/alias to redirect, 'query' => parameters, ... [other parameters are equal to the url() function specification]</b>).",
+        array('%php' => '<?php ?>'))
   );
 
   $form['condition'] = array(
@@ -96,34 +95,48 @@ function login_destination_admin_settings() {
     '#title' => t('Redirect condition'),
     '#rows' => 4,
     '#description' =>
-      t('<b>Always:</b> Redirection happens always. Redirect condition field is ignored.'). '<br/>'.
-      t('<b>List of paths mode:</b> Enter a list of paths, one path per one line. Redirection will happen only when logging from specified pages. Example paths are %ex1 or %ex2.', array('%ex1' => 'contact', '%ex2' => 'user/login')). '<br/>'.
-      t('<b>PHP snippet mode:</b> Enter PHP code to find should redirection happen or not (<b>NO %php tags!</b>). It should return boolean value.', array('%php' => '<?php ?>'))
+      t('<b>Always:</b> Redirection happens always. Redirect condition field is ignored.'). '<br/>' .
+      t('<b>List of paths mode:</b> Enter a list of paths, one path per one line. Redirection will happen only when logging from specified pages. Example paths are <b>%ex1</b> or <b>%ex2</b>.',
+        array('%ex1' => 'contact', '%ex2' => 'user/login')). '<br/>'.
+      t('<b>PHP snippet mode:</b> Enter PHP code to find should redirection happen or not (<b>NO %php tags!</b>). It should return boolean value.',
+        array('%php' => '<?php ?>'))
   );
 
   return system_settings_form($form);
 }
 
 /**
- * Callback for login_redirect URL.
+ * Implementation of hook_user.
  */
-function login_destination_redirect() {
-  $destination = variable_get('ld_url_destination', 'user');
+function login_destination_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+  case 'login':
+    global $language;
+    $destination = variable_get('ld_url_destination', 'user');
+    
+    if (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) {
+      ob_start();
+      $url = eval($destination);
+      ob_end_clean();
+    }
+    else {
+      $url = $destination;
+    }
 
-  if (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) {
-    ob_start();
-    $url = eval($destination);
-    ob_end_clean();
-  } else {
-    $url = $destination;
+    if (is_array($url) && !empty($url['path'])) {
+      $path = $url['path'];
+      unset($url['path']);
+      $base = base_path();
+      if (!empty($language->prefix)) {
+        $base .= $language->prefix. '/';
+      }
+      $url = str_replace($base, '', url($path, $url));
+    }
   }
-
-  if (is_array($url)) {
-    drupal_goto($url['path'], $url['query']);
-  } else {
-    drupal_goto($url);
+  if (login_destination_apply_redirect()) {
+    $_REQUEST['destination'] = $url;
   }
-}
+}    
 
 /**
  * A helper function to determine whether redirection should happen.
@@ -131,22 +144,23 @@ function login_destination_redirect() {
  * @return bool TRUE - apply redirect, FALSE - not to apply redirect.
  */
 function login_destination_apply_redirect() {
-
-  if (!empty($_GET['destination']) && variable_get('ld_destination', TRUE)) {
+  if ($_GET['destination'] != $_GET['q'] && variable_get('ld_destination', TRUE)) {
     return FALSE;
   }
 
   $mode = variable_get('ld_condition_type', LOGIN_COND_ALWAYS);
   if (LOGIN_COND_ALWAYS == $mode) {
     return TRUE;
-  } else {
+  }
+  else {
     $cond = variable_get('ld_condition_snippet', '');
     if (LOGIN_COND_PAGES == $mode) {
       $paths = split("[\n\r]", $cond);
       return in_array($_GET['q'], $paths);
-    } elseif (LOGIN_COND_SNIPPET == $mode) {
+    }
+    elseif (LOGIN_COND_SNIPPET == $mode) {
       $destination = variable_get('ld_url_destination', 'user');
-      return drupal_eval('<?php '. $cond. ' ?>');
+      return drupal_eval('<?php ' .$cond. ' ?>');
     }
   }
 }

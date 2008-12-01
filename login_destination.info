@@ -1,4 +1,4 @@
-name = Login Destination
-description = Controls which URL users will be redirected upon login.
-version = VERSION
+; $Id$
+name = "Login destination"
+description = "Control where users are directed to once they login."
 core = 6.x
