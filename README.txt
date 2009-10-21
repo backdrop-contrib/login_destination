@@ -1,10 +1,11 @@
 Description
 -----------------
-This module controls where users go after logging in.
-You can configure login destination on a settings page.
+This module controls where users go after logging in:
+- a static URL or 
+- your PHP snippet's outputed places (see below).
 
-It will be either static URL or a PHP snippet evaluating your own site's logic.
 You can also use alias URLs instead of internal paths.
+
 If you want to redirect a user to an URL with a query (parameters specified in GET),
 you should return an array instead of a string of the following format:
     return array('path' => 'node/add/video', 'query' => 'param1=100&param2=200');
@@ -55,3 +56,4 @@ Authors
 -----------------
 Moshe Weitzman <weitzman AT tejasa DOT com>
 ARDAS group <info AT ardas DOT dp DOT ua>
+rsvelko from segments.at
