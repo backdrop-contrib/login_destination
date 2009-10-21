@@ -19,8 +19,8 @@ define('LOGIN_COND_SNIPPET', 'snippet');
 define('LOGIN_DEST_PERM_ADMIN', 'administer login destination');
 
 /**
-* Implementation of hook_perm().
-*/
+ * Implementation of hook_perm().
+ */
 function login_destination_perm() {
   return array(LOGIN_DEST_PERM_ADMIN);
 }
@@ -100,7 +100,9 @@ function login_destination_admin_settings() {
     '#title' => t('URL: (<b>IMPORTANT! If using a WYSWYG editor - ensure that you use its plain text mode! There is a link below the text box.</b> )'),
     '#rows' => 4,
     '#description' =>
-      t('<b>Static URL mode:</b> Enter a static path. Example paths are %ex1 or %ex2.', array('%ex1' => 'node/add', '%ex2' => 'workspace')). '<br/>'.
+      t('<b>Static URL mode:</b> Enter a static path. Example paths are %ex1 or %ex2.', 
+       array('%ex1' => 'node/add', '%ex2' => 'workspace')). '<br/>'.
+
       t("<b>PHP snippet mode:</b> Enter PHP code to evaluate path (<b>NO %php tags!</b>). It should return either a string value or an array like in: <b> return array('path' => 'node/add/video or alias', 'query' => 'param1=100&param2=200');</b>.",
         array('%php' => '<?php ?>'))
   );
@@ -112,10 +114,11 @@ function login_destination_admin_settings() {
  * Implementation of hook_user.
  */
 function login_destination_user($op, &$edit, &$account, $category = NULL) {
+  $url = NULL;
   if ($op == 'login') {
     global $language;
     $destination = variable_get('ld_url_destination', 'user');
-    
+
     if (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) {
       ob_start();
       $url = eval($destination);
@@ -124,6 +127,18 @@ function login_destination_user($op, &$edit, &$account, $category = NULL) {
     else {
       $url = $destination;
     }
+
+
+
+    if (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) {
+      ob_start();
+      $url = eval($destination);
+      ob_end_clean();
+    }
+    else {
+      $url = $destination;
+    }
+
 
     if (is_array($url) && !empty($url['path'])) {
       $path = $url['path'];
@@ -162,7 +177,7 @@ function login_destination_apply_redirect() {
       return in_array($_GET['q'], $paths);
     }
     elseif (LOGIN_COND_SNIPPET == $mode) {
-      $destination = variable_get('ld_url_destination', 'user');
+//      $destination = variable_get('ld_url_destination', 'user');
       return drupal_eval('<?php ' .$cond. ' ?>');
     }
   }
