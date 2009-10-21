@@ -1,4 +1,4 @@
 ; $Id$
-name = "Login destination"
-description = "Control where users are directed to once they login."
+name = Login destination
+description = Control where users are directed to once they login.
 core = 6.x
