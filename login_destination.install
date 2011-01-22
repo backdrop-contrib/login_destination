@@ -1,0 +1,55 @@
+<?php
+
+/**
+ * Implementation of hook_uninstall().
+ */
+
+function login_destination_uninstall() {
+  variable_del('ld_condition_type');
+  variable_del('ld_condition_pages');
+  variable_del('ld_destination_type');
+  variable_del('ld_destination_page');
+  variable_del('ld_destination_preserve');
+}
+
+function login_destination_update_7000() {
+  // Names of variables have changed
+  $type = variable_get('ld_condition_type', 0);
+  $snippet = variable_get('ld_condition_snippet', '');
+
+  if ($type == 'always') {
+    variable_set('ld_condition_type', 0);  
+    variable_set('ld_condition_pages', $snippet);
+  }
+  elseif ($type == 'pages') {
+    variable_set('ld_condition_type', 1);
+    variable_set('ld_condition_pages', $snippet);
+  }
+  elseif ($type == 'snippet') {
+    variable_set('ld_condition_type', 2);
+    // We introduced php tags.
+    $snippet = '<?php ' . $snippet . '?>';
+    variable_set('ld_condition_pages', $snippet);
+  }
+
+  $type = variable_get('ld_url_type', 0);
+  $snippet = variable_get('ld_url_destination', '');
+
+  if ($type == 'static') {
+    variable_set('ld_destination_type', 0);
+    variable_set('ld_destination_page', $snippet);
+  }
+  elseif ($type == 'snippet') {
+    variable_set('ld_destination_type', 0);
+    $snippet = '<?php ' . $snippet . '?>';
+    variable_set('ld_destination_page', $snippet);
+  }
+
+  variable_set('ld_destination_preserve', variable_get('ld_destination', 0));
+
+  variable_del('ld_condition_type');
+  variable_del('ld_condition_snippet');
+  variable_del('ld_destination');
+  variable_del('ld_url_type');
+  variable_del('ld_url_destination');
+}
