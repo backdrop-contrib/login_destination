@@ -1,4 +1,9 @@
-; $Id$
-name = Login destination
+
+name = Login Destination
 description = Control where users are directed to once they login.
-core = 6.x
+core = 7.x
+files[] = login_destination.module
+files[] = login_destination.admin.inc
+configure = admin/config/system/login_destination
+
+

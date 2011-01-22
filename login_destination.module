@@ -1,184 +1,216 @@
 <?php
-// $Id$
 
 /**
  * @file
- * Control where users are directed to once they login
+ * Control where users are directed to, once they login
  */
-
-// Destination constants
-define('LOGIN_DEST_STATIC', 'static');
-define('LOGIN_DEST_SNIPPET', 'snippet');
 
 // Condition constants
-define('LOGIN_COND_ALWAYS', 'always');
-define('LOGIN_COND_PAGES', 'pages');
-define('LOGIN_COND_SNIPPET', 'snippet');
+define('LOGIN_DESTINATION_REDIRECT_NOTLISTED', 0);
+define('LOGIN_DESTINATION_REDIRECT_LISTED', 1);
+define('LOGIN_DESTINATION_REDIRECT_PHP', 2);
 
-// Permissions
-define('LOGIN_DEST_PERM_ADMIN', 'administer login destination');
+// Destination constants
+define('LOGIN_DESTINATION_STATIC', 0);
+define('LOGIN_DESTINATION_SNIPPET', 1);
 
 /**
- * Implementation of hook_perm().
+ * Implement hook_help().
  */
-function login_destination_perm() {
-  return array(LOGIN_DEST_PERM_ADMIN);
+function login_destination_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#login_destination':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('The Login Destination module allows you to specify where users are redirected to, once they login.') . '</p>';
+      return $output;
+  }
 }
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_permission().
+ */
+function login_destination_permission() {
+  return array(
+    'administer login destination' => array(
+      'title' => t('Administer Login Destination'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
  */
 function login_destination_menu() {
 
-  $items['admin/user/login_destination'] = array(
+  $items['admin/config/system/login_destination'] = array(
     'title' => 'Login Destination',
     'description' => 'Control where users are redirected to, once they login.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_admin_settings'),
-    'access arguments' => array(LOGIN_DEST_PERM_ADMIN),
-    'type' => MENU_NORMAL_ITEM
+    'access arguments' => array('administer login destination'),
+    'file' => 'login_destination.admin.inc',
+    'weight' => -10,
   );
-
+  
   return $items;
 }
 
-function login_destination_admin_settings() {
-  $form = array();
+/**
+ * Implements hook_form_alter
+ */
+function login_destination_form_alter(&$form, &$form_state, $form_id) {
+  // We redirect by setting the $form_state['redirect'] variable. If we simply
+  // call drupal_goto() it may break compability with other modules. If we set
+  // the $_GET['destination'] variable we will loose the possibility to redirect
+  // to an external URL.
 
-  # on which pages we redirect
-  $form['condition'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Redirection condition'),
-    '#description' => t('When should redirection happen?')
-  );
-  $form['condition']['ld_condition_type'] = array(
-    '#type' => 'radios',
-    '#default_value' => variable_get('ld_condition_type', 'always'),
-    '#options' => array(
-      LOGIN_COND_ALWAYS => t('Always'),
-      LOGIN_COND_PAGES => t('List of paths'),
-      LOGIN_COND_SNIPPET => t('PHP snippet (experts only)')
-    )
-  );
-  $form['condition']['ld_condition_snippet'] = array(
-    '#type' => 'textarea',
-    '#default_value' => variable_get('ld_condition_snippet', ''),
-    '#title' => t('Redirect condition: <b>IMPORTANT! If using a WYSWYG editor - ensure that you use its plain text mode! There is a link below the text box.</b>'),
-    '#rows' => 4,
-    '#description' =>
-      t('<b>Always:</b> Redirection happens always. Redirect condition field is ignored.'). '<br/>' .
-      t('<b>List of paths mode:</b> Enter a list of paths, one path per one line. Redirection will happen only when logging from specified pages. Example paths are <b>%ex1</b> or <b>%ex2</b>.',
-        array('%ex1' => 'contact', '%ex2' => 'user/login')). '<br/>'.
-      t('<b>PHP snippet mode:</b> Enter PHP code to find should redirection happen or not (<b>NO %php tags!</b>). It should return a boolean value.',
-        array('%php' => '<?php ?>'))
-  );
+  // Please note the the system_goto_action() calls drupal_goto() so it will
+  // have priority over this module.
   
-  
-  # to where we redirect
-  $form['destination'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Destination URL settings'),
-    '#description' => t('To where exactly should the user be redirected upon login.')
-  );
-  $form['destination']['ld_destination'] = array(
-    '#type' => 'checkbox',
-    '#default_value' => variable_get('ld_destination', TRUE),
-    '#title' => t('Preserve destination'),
-    '#description' => t("If checked, 'destination=' parameter specified in the URL will be used to perform redirection. Otherwise, redirection will be always performed according to the settings below."),
-  );
-  $form['destination']['ld_url_type'] = array(
-    '#type' => 'radios',
-    '#default_value' => variable_get('ld_url_type', LOGIN_DEST_STATIC),
-    '#options' => array(
-      LOGIN_DEST_STATIC => t('Static URL'),
-      LOGIN_DEST_SNIPPET => t('PHP snippet (experts only)')
-    )
-  );
-  $form['destination']['ld_url_destination'] = array(
-    '#type' => 'textarea',
-    '#default_value' => variable_get('ld_url_destination', 'user'),
-    '#title' => t('URL: (<b>IMPORTANT! If using a WYSWYG editor - ensure that you use its plain text mode! There is a link below the text box.</b> )'),
-    '#rows' => 4,
-    '#description' =>
-      t('<b>Static URL mode:</b> Enter a static path. Example paths are %ex1 or %ex2.', 
-       array('%ex1' => 'node/add', '%ex2' => 'workspace')). '<br/>'.
-
-      t("<b>PHP snippet mode:</b> Enter PHP code to evaluate path (<b>NO %php tags!</b>). It should return either a string value or an array like in: <b> return array('path' => 'node/add/video or alias', 'query' => 'param1=100&param2=200');</b>.",
-        array('%php' => '<?php ?>'))
-  );
-
-  return system_settings_form($form);
+  // If we add the $form_state['redirect'] here it will be overriden by the
+  // user_login_submit(). So we add a submit handler here and will set the
+  // redirect later. Our sumbit handler will be executed after the execution
+  // of user_login_submit().
+  switch ($form_id) {
+    case 'user_login': // user login page
+    case 'user_login_block': // user login block
+    case 'user_login_custom': // for future use with custom login forms
+        $form['#submit'][] = 'login_destination_submit';
+      break;
+  }
 }
 
 /**
- * Implementation of hook_user.
+ * Helper submit function.
  */
-function login_destination_user($op, &$edit, &$account, $category = NULL) {
-  $url = NULL;
-  if ($op == 'login') {
-    global $language;
-    $destination = variable_get('ld_url_destination', 'user');
+function login_destination_submit($form, &$form_state) {
+  if (_login_destination_should_redirect($form, $form_state)) {
 
-    if (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) {
-      ob_start();
-      $url = eval($destination);
-      ob_end_clean();
-    }
-    else {
-      $url = $destination;
-    }
+    $path = _login_destination_create_path($form, $form_state);
 
+    if(!empty($path)) {
+      // Insert to redirect information to form
+      $form_state['redirect'] = $path;
 
-
-    if (variable_get('ld_url_type', LOGIN_DEST_STATIC) == LOGIN_DEST_SNIPPET) {
-      ob_start();
-      $url = eval($destination);
-      ob_end_clean();
-    }
-    else {
-      $url = $destination;
-    }
-
-
-    if (is_array($url) && !empty($url['path'])) {
-      $path = $url['path'];
-      unset($url['path']);
-      $base = base_path();
-      if (!empty($language->prefix)) {
-        $base .= $language->prefix. '/';
+      // check if we preserve the destination parameter
+      if(!variable_get('ld_destination_preserve', FALSE)) {
+        // Hack: The $_GET['destination'] from user_login_block overrides the
+        // $form_state['redirect'] in drupal_goto(), so unset it.
+        // More on this issue http://drupal.org/node/732542.
+        unset($_GET['destination']);
       }
-      $url = str_replace($base, '', url($path, $url));
-    }
-
-    if (login_destination_apply_redirect()) {
-      $_REQUEST['destination'] = $url;
     }
   }
 }
+
+/**
+ * Evaluate the code with forms context.
+ *
+ * This function hides the calling function's scope from eval() but
+ * exposes the form variables to it. We could use the php_eval()
+ * but would not be able to pass the form variables then.
+ */
+function _login_destination_eval($code, $form, $form_state) {
+  return eval('?>' . $code);
+}
+
 
 /**
  * A helper function to determine whether redirection should happen.
  *
  * @return bool TRUE - apply redirect, FALSE - not to apply redirect.
  */
-function login_destination_apply_redirect() {
-  if (!empty($_GET['destination']) && $_GET['destination'] != $_GET['q'] && variable_get('ld_destination', TRUE)) {
-    return FALSE;
-  }
+function _login_destination_should_redirect($form, &$form_state) {
 
-  $mode = variable_get('ld_condition_type', LOGIN_COND_ALWAYS);
-  if (LOGIN_COND_ALWAYS == $mode) {
-    return TRUE;
+  $type = variable_get('ld_condition_type', LOGIN_DESTINATION_REDIRECT_NOTLISTED);
+  $pages = variable_get('ld_condition_pages', '');
+
+  if($type < LOGIN_DESTINATION_REDIRECT_PHP) {
+    $page_match = FALSE;
+    $path = drupal_get_path_alias($_GET['q']);
+
+    $page_match = drupal_match_path($path, $pages);
+
+    if ($path != $_GET['q']) {
+      $page_match = $page_match || drupal_match_path($_GET['q'], $pages);
+    }
+    $page_match = !($type xor $page_match);
+  } 
+  elseif (module_exists('php')) {
+    // Expose the $form and $form_state variables to eval(). They
+    // are useful for snippets.
+    $page_match = _login_destination_eval($pages, $form, $form_state);
   }
   else {
-    $cond = variable_get('ld_condition_snippet', '');
-    if (LOGIN_COND_PAGES == $mode) {
-      $paths = split("[\n\r]", $cond);
-      return in_array($_GET['q'], $paths);
-    }
-    elseif (LOGIN_COND_SNIPPET == $mode) {
-//      $destination = variable_get('ld_url_destination', 'user');
-      return drupal_eval('<?php ' .$cond. ' ?>');
-    }
+    $page_match = FALSE;
   }
+
+  return $page_match;
+}
+
+function _login_destination_create_path($form, $form_state) {
+    // redirect to front by default
+    $type = variable_get('ld_destination_type', LOGIN_DESTINATION_STATIC);
+    $destination_str = variable_get('ld_destination_page', '<front>');
+    
+    $path = $query = NULL;
+
+    if($type == LOGIN_DESTINATION_STATIC) {
+      // take only 1st line
+      if (preg_match("!^(.*?)$!", $destination_str, $matches) === 1 ) {
+        $path  = $matches[1];
+      }
+    }
+    elseif (module_exists('php')) {
+
+      // We cannot use the php_eval because we expect array here, but for the
+      // matter of consistent UI we don't do it with the PHP Filter module off.
+      // However we expose the $form and $form_state variables here which
+      // are useful for snippets.
+      $url = _login_destination_eval($destination_str, $form, $form_state);
+
+      // if an array came from the snippet (an array with "path" and "query" keys)
+      if (is_array($url) && !empty($url['path'])) {
+        // "/" or "/drupal/" or similar
+        $base = base_path();
+        global $language;
+        if (!empty($language->prefix)) {
+          // now becomes probably "/en/" or "/drupal/en/"
+          $base .= $language->prefix . '/';
+        }
+
+        $path  = $url['path'];
+        $query = $url['query'];
+
+        // strip base from url (isn't this too paranoic?) (won't hurt)
+        $path = preg_replace( "!^$base!", '', $path);
+      }
+      // if the snippet returned a string
+      else {
+        $path  = $url;
+      }
+    }
+
+    // support for <front>
+    if ($path == "<front>") {
+      $path = drupal_get_normal_path(variable_get('site_frontpage', 'node') );
+    }
+
+    // append query
+    // if external URL
+    if (substr($path, 0, 4) == "http") {
+      $path = trim($path, "/");
+      if (!empty($query)) {
+        $path .= urlencode("?" . $query);
+      }
+    }
+    // if internal path
+    else {
+      if (!empty($query)) {
+        $path .= "?" . $query;
+      }
+    }
+
+    return $path;
 }

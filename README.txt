@@ -17,9 +17,10 @@ So, you can redirect user to various pages depending on which pages they are log
 
 Configuration
 -----------------
-All configuration is performed on an Administer -> User management -> Login destination page
-(admin/user/login_destination).
+All configuration is performed on an Configuration -> System -> Login destination page
+(admin/config/system/login_destination).
 
+Note that the PHP filter module has to enabled and you have to be granted the "Use PHP for settings" permissions to be able to enter PHP snippets.
 
 Examples
 -----------------
@@ -41,9 +42,9 @@ PHP snippet for Redirection condition should return boolean value. An example is
 
   return ($_GET['q'] == 'user/login');
 
-Don't put PHP tags when creating snippets.
+Remeber to put PHP tags when creating snippets.
 
-Turn on "Preserve destination" feature to make module sensible to destination parameter.
+Turn on "Preserve the destination parameter" feature to make module sensible to destination parameter.
 When login from the path with specified destination (ex: 'any-page?destination=node/18')
 you will be taken to node/18 instead of the URL specified in login_destination settings.
 
