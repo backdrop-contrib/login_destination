@@ -1,4 +1,5 @@
 <?php
+// $Id: login_destination.module,v 1.10.2.23 2010/10/27 22:12:46 setfree Exp $
 
 /**
  * @file
@@ -42,18 +43,78 @@ function login_destination_permission() {
  * Implements hook_menu().
  */
 function login_destination_menu() {
-
-  $items['admin/config/system/login_destination'] = array(
-    'title' => 'Login Destination',
+  $items['admin/config/people/login-redirect'] = array(
+    'title' => 'Login redirects',
     'description' => 'Control where users are redirected to, once they login.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('login_destination_admin_settings'),
+    'page callback' => 'login_destination_overview',
     'access arguments' => array('administer login destination'),
     'file' => 'login_destination.admin.inc',
+    'weight' => 10,
+  );
+  $items['admin/config/people/login-redirect/add'] = array(
+    'title' => 'Add redirect rule',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('login_destination_edit_form'),
+    'access arguments' => array('administer login destination'),
+    'type' => MENU_LOCAL_ACTION,
+    'weight' => 1,
+    'file' => 'login_destination.admin.inc',
+  );
+  $items['admin/config/people/login-redirect/edit/%login_destination'] = array(
+    'title' => 'Edit redirect rule',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('login_destination_edit_form', 5),
+    'access arguments' => array('administer login destination'),
+    'file' => 'login_destination.admin.inc',
+  );
+  $items['admin/config/people/login-redirect/delete/%login_destination'] = array(
+    'title' => 'Delete redirect rule',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('login_destination_delete_form', 5),
+    'access arguments' => array('administer login destination'),
+    'file' => 'login_destination.admin.inc',
+  );
+  $items['admin/config/people/login-redirect/list'] = array(
+    'title' => 'List',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
   
   return $items;
+}
+
+/**
+ * Load a login redirect.
+ */
+function login_destination_load($id) {
+  $result = db_select('login_redirect', 'l')
+    ->fields('l')
+    ->condition('id', $id)
+    ->execute()
+    ->fetchAssoc();
+
+  $result['roles'] = unserialize($result['roles']);
+  if(empty($result['roles'])) {
+    $result['roles'] = array();
+  }
+
+  return $result;
+}
+
+/**
+ * Implements hook_theme
+ */
+function login_destination_theme() {
+  return array(
+    'login_redirect_roles' => array(
+      'variables' => array('roles' => NULL),
+      'file' => 'login_destination.admin.inc',
+    ),
+    'login_redirect_pages' => array(
+      'variables' => array('pages' => NULL),
+      'file' => 'login_destination.admin.inc',
+    ),
+  );
 }
 
 /**
@@ -69,8 +130,8 @@ function login_destination_form_alter(&$form, &$form_state, $form_id) {
   // have priority over this module.
   
   // If we add the $form_state['redirect'] here it will be overriden by the
-  // user_login_submit(). So we add a submit handler here and will set the
-  // redirect later. Our sumbit handler will be executed after the execution
+  // user_login_submit(). So we add a submit handler instead and will set the
+  // redirect later. Our submit handler will be executed after the execution
   // of user_login_submit().
   switch ($form_id) {
     case 'user_login': // user login page
@@ -85,21 +146,35 @@ function login_destination_form_alter(&$form, &$form_state, $form_id) {
  * Helper submit function.
  */
 function login_destination_submit($form, &$form_state) {
-  if (_login_destination_should_redirect($form, $form_state)) {
+  
+  // Get all the login redirect rules from the database.
+  $result = db_select('login_redirect', 'l')
+    //->addTag('translatable')
+    ->fields('l', array('roles', 'pages_type', 'pages', 'destination_type', 'destination'))
+    ->orderBy('weight')
+    ->execute()
+    ->fetchAll();
 
-    $path = _login_destination_create_path($form, $form_state);
+  foreach ($result as $redirect_rule) {
+    if (_login_destination_should_redirect($form, $form_state, $redirect_rule)) {
 
-    if(!empty($path)) {
-      // Insert to redirect information to form
-      $form_state['redirect'] = $path;
+      $path = _login_destination_create_path($form, $form_state, $redirect_rule);
 
-      // check if we preserve the destination parameter
-      if(!variable_get('ld_destination_preserve', FALSE)) {
-        // Hack: The $_GET['destination'] from user_login_block overrides the
-        // $form_state['redirect'] in drupal_goto(), so unset it.
-        // More on this issue http://drupal.org/node/732542.
-        unset($_GET['destination']);
+      if(!empty($path)) {
+        // Insert to redirect information to form
+        $form_state['redirect'] = $path;
+
+        // check if we preserve the destination parameter
+        if(!variable_get('ld_destination_preserve', FALSE)) {
+          // Hack: The $_GET['destination'] from user_login_block overrides the
+          // $form_state['redirect'] in drupal_goto(), so unset it.
+          // More on this issue http://drupal.org/node/732542.
+          unset($_GET['destination']);
+        }
       }
+
+      // match found, break
+      break;
     }
   }
 }
@@ -121,13 +196,30 @@ function _login_destination_eval($code, $form, $form_state) {
  *
  * @return bool TRUE - apply redirect, FALSE - not to apply redirect.
  */
-function _login_destination_should_redirect($form, &$form_state) {
+function _login_destination_should_redirect($form, &$form_state, $redirect_rule) {
 
-  $type = variable_get('ld_condition_type', LOGIN_DESTINATION_REDIRECT_NOTLISTED);
-  $pages = variable_get('ld_condition_pages', '');
+  global $user;
 
+  $type = $redirect_rule->pages_type;
+  $pages = $redirect_rule->pages;
+  $roles = unserialize($redirect_rule->roles);
+
+  if(empty($roles))
+    $roles = array();
+
+  // examine role matches
+  $role_options = array_map('check_plain', user_roles(TRUE));
+  unset($role_options[DRUPAL_AUTHENTICATED_RID]);
+
+  // remove non-existent roles
+  $roles = array_intersect_key($role_options, $roles);
+
+  $roles_intersect = array_intersect_key($roles, $user->roles);
+
+  $role_match = (empty($roles) || !empty($roles_intersect));
+
+  // examine path matches
   if($type < LOGIN_DESTINATION_REDIRECT_PHP) {
-    $page_match = FALSE;
     $path = drupal_get_path_alias($_GET['q']);
 
     $page_match = drupal_match_path($path, $pages);
@@ -139,20 +231,20 @@ function _login_destination_should_redirect($form, &$form_state) {
   } 
   elseif (module_exists('php')) {
     // Expose the $form and $form_state variables to eval(). They
-    // are useful for snippets.
-    $page_match = _login_destination_eval($pages, $form, $form_state);
+    // may be useful for snippets.
+    $page_match = _login_destination_eval($pages, $form, &$form_state);
   }
   else {
     $page_match = FALSE;
   }
 
-  return $page_match;
+  return ($page_match && $role_match);
 }
 
-function _login_destination_create_path($form, $form_state) {
+function _login_destination_create_path($form, $form_state, $redirect_rule) {
     // redirect to front by default
-    $type = variable_get('ld_destination_type', LOGIN_DESTINATION_STATIC);
-    $destination_str = variable_get('ld_destination_page', '<front>');
+    $type = $redirect_rule->destination_type;
+    $destination_str = $redirect_rule->destination;
     
     $path = $query = NULL;
 
@@ -168,7 +260,7 @@ function _login_destination_create_path($form, $form_state) {
       // matter of consistent UI we don't do it with the PHP Filter module off.
       // However we expose the $form and $form_state variables here which
       // are useful for snippets.
-      $url = _login_destination_eval($destination_str, $form, $form_state);
+      $url = _login_destination_eval($destination_str, $form, &$form_state);
 
       // if an array came from the snippet (an array with "path" and "query" keys)
       if (is_array($url) && !empty($url['path'])) {
