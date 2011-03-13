@@ -137,7 +137,7 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
 
     if (module_exists('php') && $access) {
       $options += array(LOGIN_DESTINATION_SNIPPET => t('Page returned by this PHP code (experts only)'));
-      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array in the form that drupal_goto will understand, e.g. %example. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>', '%example' => '<?php return array(\'blog\', array(\'fragment\' => \'overlay=admin/config\', ), ); ?>'));
+      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array of params that %drupal_goto function will understand, e.g. %example. For more information, see the online API entry for <a href="@url">url function</a>. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>', '%drupal_goto' => 'drupal_goto($path = \'\', array $options = array(), $http_response_code = 302)', '%example' => '<?php return array(\'blog\', array(\'fragment\' => \'overlay=admin/config\', ), ); ?>', '@url' => 'http://api.drupal.org/api/drupal/includes--common.inc/function/url/7'));
     }
 
     $form['destination_type'] = array(
