@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Install, update and uninstall functions for the Login Destination module.
+ */
+
+/**
  * Implements hook_schema().
  */
 function login_destination_schema() {

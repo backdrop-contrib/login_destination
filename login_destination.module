@@ -95,7 +95,7 @@ function login_destination_load($id) {
     ->fetchAssoc();
 
   $result['roles'] = unserialize($result['roles']);
-  if(empty($result['roles'])) {
+  if (empty($result['roles'])) {
     $result['roles'] = array();
   }
 
@@ -168,12 +168,12 @@ function login_destination_submit($form, &$form_state) {
   // LoginToboggan's unified page is rendered dynamically. Fix it.
   switch ($form['#form_id']) {
     case 'user_register_form':
-      if(drupal_match_path($path, 'user')) {
+      if (drupal_match_path($path, 'user')) {
         $path = 'user/register';
       }
       break;
     case 'user_login':
-      if(drupal_match_path($path, 'user/register')) {
+      if (drupal_match_path($path, 'user/register')) {
         $path = 'user';
       }
       break;
@@ -233,10 +233,11 @@ function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_
 
     if (!empty($destination) && (!isset($_GET['destination']) || !variable_get('login_destination_preserve_destination', FALSE))) {
       // alter drupal_goto
-      if(is_array($destination)) {
+      if (is_array($destination)) {
         $path = $destination[0];
         $options = $destination[1];
-      } else {
+      }
+      else {
         $path = $destination;
       }
     }
@@ -256,7 +257,7 @@ function login_destination_get_destination($path = NULL) {
     ->execute()
     ->fetchAll();
 
-  if($path == NULL) {
+  if ($path == NULL) {
     $path = $_GET['q'];
   }
   // examine path matches
@@ -277,9 +278,10 @@ function login_destination_get_destination($path = NULL) {
  * Evaluate the code with forms context.
  *
  * This function hides the calling function's scope from eval().
- * We could use the php_eval(), but would not be able get array return value.
  */
 function _login_destination_eval($code) {
+  // We could use the php_eval(), but would not be able get array return value.
+  // We always check for the existance of PHP Filter module for security.
   return eval('?>' . $code);
 }
 
@@ -307,7 +309,7 @@ function _login_destination_should_redirect($rule, $path = NULL) {
   $roles = unserialize($rule->roles);
 
   // examine role matches
-  if(empty($roles))
+  if (empty($roles))
     $roles = array();
 
   // remove non-existent roles

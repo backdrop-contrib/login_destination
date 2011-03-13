@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Admin page callback file for the Login Destination module.
+ */
+
+/**
  * List destination rules.
  */
 function login_destination_overview() {
@@ -23,7 +28,7 @@ function login_destination_overview() {
   foreach ($result as $data) {
 
     $roles = array_map('check_plain', unserialize($data->roles));
-    if(empty($roles))
+    if (empty($roles))
       $roles = array();
 
     $rows[] = array(
@@ -53,8 +58,8 @@ function login_destination_overview() {
 function theme_login_destination_destination($variables) {
   $output = nl2br(check_plain($variables['destination']));
 
-  if(empty($output)) {
-    $output = '<i>'.t('Empty').'</i>';
+  if (empty($output)) {
+    $output = '<i>' . t('Empty') . '</i>';
   }
 
   return $output;
@@ -63,28 +68,29 @@ function theme_login_destination_destination($variables) {
 function theme_login_destination_pages($variables) {
   $type = $variables['pages_type'];
   
-  if($type == LOGIN_DESTINATION_REDIRECT_PHP) {
+  if ($type == LOGIN_DESTINATION_REDIRECT_PHP) {
     return nl2br(check_plain($variables['pages']));
   }
 
   $pages = trim($variables['pages']);
 
-  if(empty($pages)) {
-    if($type == LOGIN_DESTINATION_REDIRECT_NOTLISTED) {
-      return '<i>'.t('All pages').'</i>';
-    } else {
-      return '<i>'.t('No pages').'</i>';
+  if (empty($pages)) {
+    if ($type == LOGIN_DESTINATION_REDIRECT_NOTLISTED) {
+      return '<i>' . t('All pages') . '</i>';
+    }
+    else {
+      return '<i>' . t('No pages') . '</i>';
     }
   }
 
   $pages = explode("\n", preg_replace('/\r/', '', check_plain($variables['pages'])));
 
   $output = '';
-  foreach($pages as &$page) {
-    if($type == LOGIN_DESTINATION_REDIRECT_NOTLISTED) {
+  foreach ($pages as &$page) {
+    if ($type == LOGIN_DESTINATION_REDIRECT_NOTLISTED) {
       $output .= "~ ";
     }
-    $output .= $page."<br/>";
+    $output .= $page . "<br/>";
   } 
 
   return $output;
@@ -93,8 +99,8 @@ function theme_login_destination_pages($variables) {
 function theme_login_destination_roles($variables) {
   $roles = array_values(array_intersect_key(_login_destination_role_options(), $variables['roles']));
 
-  if(empty($roles)) {
-    return '<i>'.t('All roles').'</i>';
+  if (empty($roles)) {
+    return '<i>' . t('All roles') . '</i>';
   }
 
   return theme('item_list', array('items' => $roles));
@@ -191,7 +197,7 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
   }
 
   $default_role_options = array_map('check_plain', $rule['roles']);
-  if(empty($default_role_options)) {
+  if (empty($default_role_options)) {
     $default_role_options = array();
   }
 
