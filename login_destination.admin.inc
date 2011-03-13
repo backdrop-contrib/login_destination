@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Categories/list tab.
+ * List destination rules.
  */
 function login_destination_overview() {
   $header = array(
@@ -12,39 +12,37 @@ function login_destination_overview() {
   );
   $rows = array();
 
-  // Get all login redirect rules from the database.
-  $result = db_select('login_redirect', 'l')
-    //->addTag('translatable')
+  // Get all login destination rules from the database.
+  $result = db_select('login_destination', 'l')
     ->fields('l', array('id', 'roles', 'pages_type', 'pages', 'destination'))
     ->orderBy('weight')
     ->execute()
     ->fetchAll();
 
   // Loop through the categories and add them to the table.
-  foreach ($result as $rule) {
+  foreach ($result as $data) {
 
-    $roles = array_map('check_plain', unserialize($rule->roles));
+    $roles = array_map('check_plain', unserialize($data->roles));
     if(empty($roles))
       $roles = array();
 
     $rows[] = array(
-      nl2br(check_plain($rule->destination)),
-      theme('login_redirect_pages', array('pages' => $rule->pages, 'pages_type' => $rule->pages_type)),
-      //nl2br(check_plain($rule->pages)),
-      theme('login_redirect_roles', array('roles' => $roles)),
-      l(t('Edit'), 'admin/config/people/login-redirect/edit/' . $rule->id),
-      l(t('Delete'), 'admin/config/people/login-redirect/delete/' . $rule->id),
+      theme('login_destination_destination', array('destination' => $data->destination)),
+      theme('login_destination_pages', array('pages' => $data->pages, 'pages_type' => $data->pages_type)),
+      theme('login_destination_roles', array('roles' => $roles)),
+      l(t('Edit'), 'admin/config/people/login-destination/edit/' . $data->id),
+      l(t('Delete'), 'admin/config/people/login-destination/delete/' . $data->id),
     );
   }
 
   if (!$rows) {
     $rows[] = array(array(
-      'data' => t('No redirect rules available.'),
+      'data' => t('No rules available.'),
       'colspan' => 5,
     ));
   }
 
-  $build['login-redirect_table'] = array(
+  $build['login-destination_table'] = array(
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => $rows,
@@ -52,8 +50,17 @@ function login_destination_overview() {
   return $build;
 }
 
-function theme_login_redirect_pages($variables) {
+function theme_login_destination_destination($variables) {
+  $output = nl2br(check_plain($variables['destination']));
 
+  if(empty($output)) {
+    $output = '<i>'.t('Empty').'</i>';
+  }
+
+  return $output;
+}
+
+function theme_login_destination_pages($variables) {
   $type = $variables['pages_type'];
   
   if($type == LOGIN_DESTINATION_REDIRECT_PHP) {
@@ -83,12 +90,8 @@ function theme_login_redirect_pages($variables) {
   return $output;
 }
 
-function theme_login_redirect_roles($variables) {
-
-  $role_options = array_map('check_plain', user_roles(TRUE));
-  unset($role_options[DRUPAL_AUTHENTICATED_RID]);
-
-  $roles = array_values(array_intersect_key($role_options, $variables['roles']));
+function theme_login_destination_roles($variables) {
+  $roles = array_values(array_intersect_key(_login_destination_role_options(), $variables['roles']));
 
   if(empty($roles)) {
     return '<i>'.t('All roles').'</i>';
@@ -100,10 +103,9 @@ function theme_login_redirect_roles($variables) {
 /**
  * Category edit page.
  */
-function login_destination_edit_form($form, &$form_state, array $login_redirect = array()) {
-
+function login_destination_edit_form($form, &$form_state, array $rule = array()) {
   // default values
-  $login_redirect += array(
+  $rule += array(
     'roles' => array(),
     'pages_type' => LOGIN_DESTINATION_REDIRECT_NOTLISTED,
     'pages' => '',
@@ -115,7 +117,7 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
 
   $access = user_access('use PHP for settings');
 
-  $type = $login_redirect['destination_type'];
+  $type = $rule['destination_type'];
 
   if ($type == LOGIN_DESTINATION_SNIPPET && !$access) {
     $form['destination_type'] = array(
@@ -124,18 +126,18 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
     );
     $form['destination'] = array(
       '#type' => 'value',
-      '#value' => $login_redirect['destination'],
+      '#value' => $rule['destination'],
     );
   }
   else {
     $options = array(
-        LOGIN_DESTINATION_STATIC => t('Static URL'),
+        LOGIN_DESTINATION_STATIC => t('Internal page or external URL'),
       );
-    $description = t("Specify page by using its path. Example path is %blog for the blog page. %front is the front page. Precede with http:// for an external URL.", array('%blog' => 'blog', '%front' => '<front>'));
+    $description = t("Specify page by using its path. Example path is %blog for the blog page. %front is the front page. Precede with http:// for an external URL. Leave empty to cancel the redirect.", array('%blog' => 'blog', '%front' => '<front>'));
 
     if (module_exists('php') && $access) {
-      $options += array(LOGIN_DESTINATION_SNIPPET => t('PHP snippet (experts only)'));
-      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array in the form of return array(\'path\' => \'node/add/video or alias\', \'query\' => \'param1=100&param2=200\');. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>'));
+      $options += array(LOGIN_DESTINATION_SNIPPET => t('Page returned by this PHP code (experts only)'));
+      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array in the form that drupal_goto will understand, e.g. %example. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>', '%example' => '<?php return array(\'blog\', array(\'fragment\' => \'overlay=admin/config\', ), ); ?>'));
     }
 
     $form['destination_type'] = array(
@@ -146,12 +148,12 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
     );
     $form['destination'] = array(
       '#type' => 'textarea',
-      '#default_value' => $login_redirect['destination'],
+      '#default_value' => $rule['destination'],
       '#description' => $description,
     );
   }
 
-  $type = $login_redirect['pages_type'];
+  $type = $rule['pages_type'];
 
   if ($type == LOGIN_DESTINATION_REDIRECT_PHP && !$access) {
     $form['pages_type'] = array(
@@ -160,7 +162,7 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
     );
     $form['pages'] = array(
       '#type' => 'value',
-      '#value' => $login_redirect['destination'],
+      '#value' => $rule['destination'],
     );
   }
   else {
@@ -168,7 +170,7 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
         LOGIN_DESTINATION_REDIRECT_NOTLISTED => t('All pages except those listed'),
         LOGIN_DESTINATION_REDIRECT_LISTED => t('Only the listed pages'),
       );
-    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>'));
+    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page. %login is the login form. %register is the registration form. %reset is the one-time login (e-mail validation). %validate is the LoginToboggan's immediate e-mail validation. %logout is the logout.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>', '%login' => 'user', '%register' => 'user/register', '%reset' => 'user/*/edit', '%validate' => 'user/validate/*', '%logout' => 'user/logout'));
 
     if (module_exists('php') && $access) {
       $options += array(LOGIN_DESTINATION_REDIRECT_PHP => t('Pages on which this PHP code returns <code>TRUE</code> (experts only)'));
@@ -183,16 +185,12 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
     );
     $form['pages'] = array(
       '#type' => 'textarea',
-      '#default_value' => $login_redirect['pages'],
+      '#default_value' => $rule['pages'],
       '#description' => $description,
     );
   }
 
-  // Add user role selection, without anonymous and authentificated user roles.
-  $role_options = array_map('check_plain', user_roles(TRUE));
-  unset($role_options[DRUPAL_AUTHENTICATED_RID]);
-
-  $default_role_options = array_map('check_plain', $login_redirect['roles']);
+  $default_role_options = array_map('check_plain', $rule['roles']);
   if(empty($default_role_options)) {
     $default_role_options = array();
   }
@@ -200,7 +198,7 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
   $form['roles'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Redirect users with roles'),
-    '#options' => $role_options,
+    '#options' => _login_destination_role_options(),
     '#default_value' => $default_role_options,
     '#description' => 'Redirect only the selected role(s). If you select no roles, all users will be redirected.',
   );
@@ -208,8 +206,8 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
   $form['weight'] = array(
     '#type' => 'weight',
     '#title' => t('Weight'),
-    '#default_value' => $login_redirect['weight'],
-    '#description' => t('When listing login redirects, those with lighter (smaller) weights get listed before categories with heavier (larger) weights.'),
+    '#default_value' => $rule['weight'],
+    '#description' => t('When evaluating login destination rules, those with lighter (smaller) weights get evaluated before rules with heavier (larger) weights.'),
   );
 
   $form['actions'] = array('#type' => 'actions');
@@ -218,10 +216,10 @@ function login_destination_edit_form($form, &$form_state, array $login_redirect 
     '#value' => t('Save'),
   );
 
-  if ($login_redirect['id']) {
+  if ($rule['id']) {
     $form['id'] = array(
       '#type' => 'hidden',
-      '#value' => $login_redirect['id'],
+      '#value' => $rule['id'],
     );
   }
 
@@ -238,37 +236,35 @@ function login_destination_edit_form_validate($form, &$form_state) {
  * Process the contact category edit page form submission.
  */
 function login_destination_edit_form_submit($form, &$form_state) {
-
   $roles = array_filter($form_state['values']['roles']);
 
   $form_state['values']['roles'] = serialize($roles);
 
   if (empty($form_state['values']['id'])) {
-    drupal_write_record('login_redirect', $form_state['values']);
+    drupal_write_record('login_destination', $form_state['values']);
   }
   else {
-    drupal_write_record('login_redirect', $form_state['values'], array('id'));
+    drupal_write_record('login_destination', $form_state['values'], array('id'));
   }
 
-  drupal_set_message(t('Login redirect to %destination has been saved.', array('%destination' => $form_state['values']['destination'])));
+  drupal_set_message(t('Login destination to %destination has been saved.', array('%destination' => $form_state['values']['destination'])));
   
-  $form_state['redirect'] = 'admin/config/people/login-redirect';
+  $form_state['redirect'] = 'admin/config/people/login-destination';
 }
 
 /**
- * Form builder for deleting a login redirect.
+ * Form builder for deleting a login destination.
  */
-function login_destination_delete_form($form, &$form_state, array $login_redirect) {
-
-  $form['login_redirect'] = array(
+function login_destination_delete_form($form, &$form_state, array $rule) {
+  $form['login_destination'] = array(
     '#type' => 'value',
-    '#value' => $login_redirect,
+    '#value' => $rule,
   );
 
   return confirm_form(
     $form,
-    t('Are you sure you want to delete the login redirect to %destination ?', array('%destination' => $login_redirect['destination'])),
-    'admin/config/people/login-redirect',
+    t('Are you sure you want to delete the login destination %destination ?', array('%destination' => $rule['destination'])),
+    'admin/config/people/login-destination',
     t('This action cannot be undone.'),
     t('Delete'),
     t('Cancel')
@@ -276,139 +272,37 @@ function login_destination_delete_form($form, &$form_state, array $login_redirec
 }
 
 /**
- * Submit handler for the confirm delete login redirect form.
+ * Submit handler for the confirm delete login destination form.
  */
 function login_destination_delete_form_submit($form, &$form_state) {
-  $login_redirect = $form['login_redirect']['#value'];
+  $rule = $form['login_destination']['#value'];
 
-  db_delete('login_redirect')
-    ->condition('id', $login_redirect ['id'])
+  db_delete('login_destination')
+    ->condition('id', $rule['id'])
     ->execute();
 
-  drupal_set_message(t('The login redirect to %destination has been deleted.', array('%destination' => $login_redirect['destination'])));
+  drupal_set_message(t('The login destination %destination has been deleted.', array('%destination' => $rule['destination'])));
 
-  $form_state['redirect'] = 'admin/config/people/login-redirect';
+  $form_state['redirect'] = 'admin/config/people/login-destination';
 }
 
-function login_destination_admin_settings() {
+/**
+ * Settings page.
+ */
+function login_destination_settings() {
   $form = array();
 
-  # on which pages we redirect
-//  $form['settings'] = array(
-//    '#type' => 'vertical_tabs',
-//  );
-
-//  $form['settings']['roles'] = array(
-//    '#type' => 'fieldset',
-//    '#title' => t('Roles'),
-//  );
-
-  // Add user role selection, without anonymous and authentificated user roles.
-  $role_options = array_map('check_plain', user_roles(TRUE));
-  unset($role_options[DRUPAL_AUTHENTICATED_RID]);
-  
-  $form['settings']['roles']['ld_roles'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Redirect users with roles'),
-    '#options' => $role_options,
-    '#default_value' => variable_get('ld_roles', array()),
-    '#description' => 'Redirect only the selected role(s). If you select no roles, all users will be redirected.',
-  );
-
-//  $form['settings']['conditions'] = array(
-//    '#type' => 'fieldset',
-//    '#title' => t('Conditions'),
-//  );
-
-  $type = variable_get('ld_condition_type', LOGIN_DESTINATION_REDIRECT_NOTLISTED);
-  $pages = variable_get('ld_condition_pages', '');
-
-  $access = user_access('use PHP for settings');
-
-  if ($type == LOGIN_DESTINATION_REDIRECT_PHP && !$access) {
-    $form['settings']['conditions']['ld_condition_type'] = array(
-      '#type' => 'value',
-      '#value' => LOGIN_DESTINATION_REDIRECT_PHP,
-    );
-    $form['settings']['conditions']['ld_condition_pages'] = array(
-      '#type' => 'value',
-      '#value' => $pages,
-    );
-  }
-  else {
-    $options = array(
-        LOGIN_DESTINATION_REDIRECT_NOTLISTED => t('All pages except those listed'),
-        LOGIN_DESTINATION_REDIRECT_LISTED => t('Only the listed pages'),
-      );
-    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>'));
-
-    if (module_exists('php') && $access) {
-      $options += array(LOGIN_DESTINATION_REDIRECT_PHP => t('Pages on which this PHP code returns <code>TRUE</code> (experts only)'));
-      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>'));
-    }
-
-    $form['settings']['conditions']['ld_condition_type'] = array(
-      '#type' => 'radios',
-      '#title' => t('Redirect from specific pages'),
-      '#default_value' => $type,
-      '#options' => $options,
-    );
-    $form['settings']['conditions']['ld_condition_pages'] = array(
-      '#type' => 'textarea',
-      '#default_value' => $pages,
-      '#description' => $description,
-    );
-  }
-  
-  # to where we redirect
-//  $form['settings']['destination'] = array(
-//    '#type' => 'fieldset',
-//    '#title' => t('Destination'),
-//  );
-
-  $type = variable_get('ld_destination_type', LOGIN_DESTINATION_STATIC);
-  // redirect to front by default
-  $destination = variable_get('ld_destination_page', '<front>');
-
-  if ($type == LOGIN_DESTINATION_SNIPPET && !$access) {
-    $form['settings']['destination']['ld_destination_type'] = array(
-      '#type' => 'value',
-      '#value' => LOGIN_DESTINATION_SNIPPET,
-    );
-    $form['settings']['destination']['ld_destination_page'] = array(
-      '#type' => 'value',
-      '#value' => $destination,
-    );
-  }
-  else {
-    $options = array(
-        LOGIN_DESTINATION_STATIC => t('Static URL'),
-      );
-    $description = t("Specify page by using its path. Example path is %blog for the blog page. %front is the front page. Precede with http:// for an external URL.", array('%blog' => 'blog', '%front' => '<front>'));
-
-    if (module_exists('php') && $access) {
-      $options += array(LOGIN_DESTINATION_SNIPPET => t('PHP snippet (experts only)'));
-      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array in the form of return array(\'path\' => \'node/add/video or alias\', \'query\' => \'param1=100&param2=200\');. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>'));
-    }
-
-    $form['settings']['destination']['ld_destination_type'] = array(
-      '#type' => 'radios',
-      '#title' => 'Redirect to page',
-      '#default_value' => $type,
-      '#options' => $options,
-    );
-    $form['settings']['destination']['ld_destination_page'] = array(
-      '#type' => 'textarea',
-      '#default_value' => $destination,
-      '#description' => $description,
-    );
-  }
-
-  $form['settings']['destination']['ld_destination_preserve'] = array(
+  $form['settings']['login_destination_preserve_destination'] = array(
     '#type' => 'checkbox',
-    '#default_value' => variable_get('ld_destination_preserve', FALSE),
+    '#default_value' => variable_get('login_destination_preserve_destination', FALSE),
     '#title' => t('Preserve the destination parameter'),
-    '#description' => t("If checked, the 'destination=' parameter specified in URL will have priority over the settings of this module. Redirect from the user login block will not work."),
+    '#description' => t("The 'destination' GET parameter will have priority over the settings of this module. With this setting enabled, redirect from the user login block will not work."),
+  );
+  $form['settings']['login_destination_profile_redirect'] = array(
+    '#type' => 'checkbox',
+    '#default_value' => variable_get('login_destination_profile_redirect', FALSE),
+    '#title' => t('Always redirect from the profile page'),
+    '#description' => t("User will be always redirected from the profile page, not only after using the one-time login link and changing the password."),
   );
 
   return system_settings_form($form);

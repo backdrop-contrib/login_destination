@@ -1,9 +1,7 @@
-; $Id: login_destination.info,v 1.7.2.2 2010/03/19 22:21:20 setfree Exp $
+
 name = Login Destination
-description = Control where users are directed to once they login.
+description = Customize the destination that the user is redirected to after login.
 core = 7.x
 files[] = login_destination.module
 files[] = login_destination.admin.inc
-configure = admin/config/system/login_destination
-
-
+configure = admin/config/people/login-destination
