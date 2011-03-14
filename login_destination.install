@@ -95,6 +95,7 @@ function login_destination_update_7000() {
 
   if ($type == 'snippet') {
     $form_state['values']['destination_type'] = 1;
+    // syntax for return value has changed.
     $form_state['values']['destination'] = '<?php /* ' . $snippet . ' */ ?>';
   }
   else {
@@ -104,7 +105,7 @@ function login_destination_update_7000() {
 
   $form_state['values']['roles'] = serialize(array());
 
-  drupal_write_record('login_redirect', $form_state['values']);
+  drupal_write_record('login_destination', $form_state['values']);
 
   variable_set('login_destination_preserve_destination', variable_get('ld_destination', 0));
 

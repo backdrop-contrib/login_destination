@@ -23,10 +23,10 @@ function login_destination_help($path, $arg) {
     case 'admin/help#login_destination':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Login Destination module allows you to customize the destination that the user is redirected to after logging in, registering to the site, using a one-time login link or logging out. The destination can be an internal page or an external URL. You may specify certain conditions like pages or user roles and make the destination depend upon them. You may also use a PHP snippets to provide custom conditions and destinations. Note that PHP Filter module has to be enabled and you have to be granted the "Use PHP for settings" permissions to be able to enter PHP code.') . '</p>';
+      $output .= '<p>' . t('The Login Destination module allows you to customize the destination that the user is redirected to after logging in, registering to the site or using a one-time login link. The destination can be an internal page or an external URL. You may specify certain conditions like pages or user roles and make the destination depend upon them. You may also use a PHP snippets to provide custom conditions and destinations. Note that PHP Filter module has to be enabled and you have to be granted the "Use PHP for settings" permissions to be able to enter PHP code.') . '</p>';
       return $output;
     case 'admin/config/people/login-destination':
-      return '<p>' . t('Login destination rules are evaluated each time a user logs in, registers to the site, uses a one-time login link or logs out. Each rule consists of the destination, path conditions and user roles conditions. First matching rule gets executed.') . '</p>';
+      return '<p>' . t('Login destination rules are evaluated each time a user logs in, registers to the site or uses a one-time login link. Each rule consists of the destination, path conditions and user roles conditions. First matching rule gets executed.') . '</p>';
   }
 }
 
@@ -142,7 +142,7 @@ function login_destination_form_alter(&$form, &$form_state, $form_id) {
 
   // We will execute also after LoginToboggan's function as it replaces the
   // original submit function from user module.
-    
+
   switch ($form_id) {
     case 'user_profile_form': // one-time login, password reset
       if (!isset($_GET['pass-reset-token']) && !variable_get('login_destination_profile_redirect', FALSE)) {
@@ -221,14 +221,10 @@ function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_
   // so the only possibility is to hook here.
   $validate_match = _login_destination_match_path('user/validate/*');
 
-  // There is no possibility to redirect inside hook_user_logout. Calling
-  // drupal_goto inside hooks always breaks the API.
-  $logout_match = _login_destination_match_path('user/logout');
-
   // Note that this cannot be backported do 6.x as Drupal 6 does not call
   // drupal_alter for drupal_goto.
 
-  if ($logout_match || ($validate_match && $user->uid)) {
+  if ($validate_match && $user->uid) {
     $destination = login_destination_get_destination();
 
     if (!empty($destination) && (!isset($_GET['destination']) || !variable_get('login_destination_preserve_destination', FALSE))) {

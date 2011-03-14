@@ -176,7 +176,7 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
         LOGIN_DESTINATION_REDIRECT_NOTLISTED => t('All pages except those listed'),
         LOGIN_DESTINATION_REDIRECT_LISTED => t('Only the listed pages'),
       );
-    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page. %login is the login form. %register is the registration form. %reset is the one-time login (e-mail validation). %validate is the LoginToboggan's immediate e-mail validation. %logout is the logout.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>', '%login' => 'user', '%register' => 'user/register', '%reset' => 'user/*/edit', '%validate' => 'user/validate/*', '%logout' => 'user/logout'));
+    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page. %login is the login form. %register is the registration form. %reset is the one-time login (e-mail validation). %validate is the LoginToboggan's immediate e-mail validation.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>', '%login' => 'user', '%register' => 'user/register', '%reset' => 'user/*/edit', '%validate' => 'user/validate/*'));
 
     if (module_exists('php') && $access) {
       $options += array(LOGIN_DESTINATION_REDIRECT_PHP => t('Pages on which this PHP code returns <code>TRUE</code> (experts only)'));
