@@ -1,5 +1,4 @@
 <?php
-// $Id: login_destination.module,v 1.10.2.23 2010/10/27 22:12:46 setfree Exp $
 
 /**
  * @file
@@ -23,10 +22,10 @@ function login_destination_help($path, $arg) {
     case 'admin/help#login_destination':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Login Destination module allows you to customize the destination that the user is redirected to after logging in, registering to the site or using a one-time login link. The destination can be an internal page or an external URL. You may specify certain conditions like pages or user roles and make the destination depend upon them. You may also use a PHP snippets to provide custom conditions and destinations. Note that PHP Filter module has to be enabled and you have to be granted the "Use PHP for settings" permissions to be able to enter PHP code.') . '</p>';
+      $output .= '<p>' . t('The Login Destination module allows you to customize the destination that the user is redirected to after logging in, registering to the site, using a one-time login link or logging out. The destination can be an internal page or an external URL. You may specify certain conditions like pages or user roles and make the destination depend upon them. You may also use a PHP snippets to provide custom conditions and destinations. Note that PHP Filter module has to be enabled and you have to be granted the "Use PHP for settings" permissions to be able to enter PHP code.') . '</p>';
       return $output;
     case 'admin/config/people/login-destination':
-      return '<p>' . t('Login destination rules are evaluated each time a user logs in, registers to the site or uses a one-time login link. Each rule consists of the destination, path conditions and user roles conditions. First matching rule gets executed.') . '</p>';
+      return '<p>' . t('Login destination rules are evaluated each time a user logs in, registers to the site, uses a one-time login link or logs out. Each rule consists of the destination, path conditions and user roles conditions. First matching rule gets executed.') . '</p>';
   }
 }
 
@@ -80,7 +79,7 @@ function login_destination_menu() {
     'file' => 'login_destination.admin.inc',
     'weight' => 10,
   );
-  
+
   return $items;
 }
 
@@ -93,6 +92,11 @@ function login_destination_load($id) {
     ->condition('id', $id)
     ->execute()
     ->fetchAssoc();
+
+  $result['triggers'] = unserialize($result['triggers']);
+  if (empty($result['triggers'])) {
+    $result['triggers'] = array();
+  }
 
   $result['roles'] = unserialize($result['roles']);
   if (empty($result['roles'])) {
@@ -115,8 +119,12 @@ function login_destination_theme() {
       'variables' => array('pages' => NULL, 'pages_type' => 0),
       'file' => 'login_destination.admin.inc',
     ),
+    'login_destination_triggers' => array(
+      'variables' => array('items' => NULL),
+      'file' => 'login_destination.admin.inc',
+    ),
     'login_destination_roles' => array(
-      'variables' => array('roles' => NULL),
+      'variables' => array('items' => NULL),
       'file' => 'login_destination.admin.inc',
     ),
   );
@@ -126,14 +134,14 @@ function login_destination_theme() {
  * Implements hook_form_alter
  */
 function login_destination_form_alter(&$form, &$form_state, $form_id) {
-  // We redirect by setting the $form_state['redirect'] variable. If we simply
+  // We redirect by using the drupal_goto_alter hook. If we simply
   // call drupal_goto() it may break compability with other modules. If we set
   // the $_GET['destination'] variable we will loose the possibility to redirect
   // to an external URL.
 
-  // Please note the the system_goto_action() calls drupal_goto() so it will
-  // have priority over this module.
-  
+  // Please note the the system_goto_action() calls drupal_goto()
+  // More on this issue http://drupal.org/node/732542.
+
   // If we add the $form_state['redirect'] here it will be overriden by the
   // user_login_submit(). So we add a submit handler instead and will set the
   // redirect later. Our submit handler will be executed after the execution
@@ -144,18 +152,39 @@ function login_destination_form_alter(&$form, &$form_state, $form_id) {
   // original submit function from user module.
 
   switch ($form_id) {
+    case 'user_register_form': // user register page
+    case 'user_login': // user login pages
+      $form['#validate'][] = 'login_destination_validate';
+      break;
+  }
+
+  switch ($form_id) {
     case 'user_profile_form': // one-time login, password reset
-      if (!isset($_GET['pass-reset-token']) && !variable_get('login_destination_profile_redirect', FALSE)) {
-        // redirect only from user_pass_reset
+      if (isset($_GET['pass-reset-token'])) {
+        // Redirect only from user_pass_reset
         // You have to explicitally turn on the option to always redirect from
         // the profile page. This is for constistency.
+        $form['#submit'][] = 'login_destination_submit';
         break;
       }
-    case 'user_register_form': // user register page
-    case 'user_login': // user login page
-    case 'user_login_block': // user login block
-    case 'user_login_custom': // for future use with custom login forms
-      $form['#submit'][] = 'login_destination_submit';
+  }
+}
+
+/**
+ * Helper submit function.
+ */
+function login_destination_validate($form, &$form_state) {
+  // LoginToboggan's unified page is rendered dynamically. Fix it.
+  switch ($form['#form_id']) {
+    case 'user_register_form':
+      if (drupal_match_path($_GET['q'], 'user')) {
+        $_GET['q'] = 'user/register';
+      }
+      break;
+    case 'user_login':
+      if (drupal_match_path($_GET['q'], 'user/register')) {
+        $_GET['q'] = 'user';
+      }
       break;
   }
 }
@@ -164,79 +193,124 @@ function login_destination_form_alter(&$form, &$form_state, $form_id) {
  * Helper submit function.
  */
 function login_destination_submit($form, &$form_state) {
-  $path = $_GET['q'];
-  // LoginToboggan's unified page is rendered dynamically. Fix it.
-  switch ($form['#form_id']) {
-    case 'user_register_form':
-      if (drupal_match_path($path, 'user')) {
-        $path = 'user/register';
-      }
-      break;
-    case 'user_login':
-      if (drupal_match_path($path, 'user/register')) {
-        $path = 'user';
-      }
-      break;
-  }
+  login_destination_perform_redirect('login');
+}
 
-  $destination = login_destination_get_destination($path);
-
-  if (!empty($destination)) {
-    // Insert to redirect information to form
-    $form_state['redirect'] = $destination;
-
-    // check if we preserve the destination parameter
-    if (!variable_get('login_destination_preserve_destination', FALSE)) {
-      // Hack: The $_GET['destination'] from user_login_block overrides the
-      // $form_state['redirect'] in drupal_goto(), so unset it.
-      // More on this issue http://drupal.org/node/732542.
-      unset($_GET['destination']);
-    }
+/**
+ * Implements hook_menu_link_alter
+ */
+function login_destination_menu_link_alter(&$item) {
+  // Flag a link to be altered by hook_translated_menu_link_alter().
+  // This is called only on menu rebuild, so we have to add this information
+  // manually to the database on install. Clearing caches also helps.
+  if ($item['link_path'] == 'user/logout' || $item['link_path'] == 'user') {
+    $item['options']['alter'] = TRUE;
   }
 }
 
 /**
- * Match drupal path. This function is alias aware.
+ * Implements hook_translated_menu_link_alter
  */
-function _login_destination_match_path($pages, $path = NULL) {
-  $alias = drupal_strtolower(drupal_get_path_alias($path));
-
-  $page_match = drupal_match_path($alias, $pages);
-
-  if ($alias != $path) {
-    $page_match = $page_match || drupal_match_path($path, $pages);
+function login_destination_translated_menu_link_alter(&$item, $map) {
+  global $user;
+  // Append the current path to URL.
+  if ($item['link_path'] == 'user/logout' || ($item['link_path'] == 'user' && user_is_anonymous())) {
+    $item['localized_options']['query'] = array('current' => $_GET['q']);
   }
+}
 
-  return $page_match;
+/**
+ * Implements hook_page_alter
+ */
+function login_destination_page_alter(&$page) {
+  // Substitute toolbar's pre_render function to change links.
+  if (isset($page['page_top']['toolbar']['#pre_render'])) {
+    $page['page_top']['toolbar']['#pre_render'][0] = 'login_destination_toolbar_pre_render';
+  }
+}
+
+/**
+ * Helper function to change toolbar's links.
+ */
+function login_destination_toolbar_pre_render($toolbar) {
+  $toolbar = toolbar_pre_render($toolbar);
+  // Add current param to be able to evaluate previous page.
+  $toolbar['toolbar_user']['#links']['logout']['query'] = array('current' => $_GET['q']);
+  return $toolbar;
+}
+
+/**
+ * Implements hook_user_login
+ */
+function login_destination_user_login(&$edit, $account) {
+  if ($_POST['form_id'] != 'user_pass_reset' || variable_get('login_destination_immediate_redirect', FALSE)) {
+    login_destination_perform_redirect('login');
+  }
+}
+
+/**
+ * Implements hook_user_insert
+ */
+function login_destination_user_insert(&$edit, $account, $category) {
+  global $user;
+
+  if (!$user->uid) {
+    // If the user is already logged in, it means probably that they create a
+    // user account and not the user registers themselves.
+    login_destination_perform_redirect('login');
+  }
+}
+
+/**
+ * Implements hook_user_logout
+ */
+function login_destination_user_logout($account) {
+  login_destination_perform_redirect('logout', _login_destination_get_current('logout'));
 }
 
 /**
  * Implements hook_drupal_goto_alter
  */
 function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_code) {
-  global $user;
+  // Note that this functionality cannot be backported do 6.x as Drupal 6 does
+  // not call drupal_alter for drupal_goto.
 
-  // LoginToboggan takes over the email validation process be directing the user
-  // to user/validate instead of user/reset. There is no form which we can alter
-  // so the only possibility is to hook here.
-  $validate_match = _login_destination_match_path('user/validate/*');
+  // This actually may be used also by templates.
+  if (isset($GLOBALS['destination'])) {
+    $destination = $GLOBALS['destination'];
 
-  // Note that this cannot be backported do 6.x as Drupal 6 does not call
-  // drupal_alter for drupal_goto.
-
-  if ($validate_match && $user->uid) {
-    $destination = login_destination_get_destination();
-
-    if (!empty($destination) && (!isset($_GET['destination']) || !variable_get('login_destination_preserve_destination', FALSE))) {
-      // alter drupal_goto
-      if (is_array($destination)) {
-        $path = $destination[0];
-        $options = $destination[1];
-      }
-      else {
-        $path = $destination;
-      }
+    // alter drupal_goto
+    if (is_array($destination)) {
+      $path = $destination[0];
+      $options = $destination[1];
     }
+    else {
+      $path = $destination;
+    }
+  }
+}
+
+/**
+ * Pass destination to drupal_goto.
+ */
+function login_destination_prepare_goto($destination) {
+  // Check if $_GET['destination'] should overwrite us
+  if (!isset($_GET['destination']) || !variable_get('login_destination_preserve_destination', FALSE)) {
+    $GLOBALS['destination'] = $destination;
+  }
+}
+
+/**
+ * Evaluate rules and perform redirect.
+ * This function is intended to be used by external modules.
+ * @param <type> $trigger
+ * @param <type> $current if null $_GET['q'] is used
+ */
+function login_destination_perform_redirect($trigger = '', $current = NULL) {
+  $destination = login_destination_get_destination($trigger, $current);
+
+  if ($destination !== FALSE) {
+    login_destination_prepare_goto($destination);
   }
 }
 
@@ -244,30 +318,30 @@ function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_
  * Process all destination rules and return destination path.
  * This function is intended to be used by external modules.
  */
-function login_destination_get_destination($path = NULL) {
+function login_destination_get_destination($trigger = '', $current = NULL) {
   // Get all the login destination rules from the database.
   $result = db_select('login_destination', 'l')
     //->addTag('translatable')
-    ->fields('l', array('roles', 'pages_type', 'pages', 'destination_type', 'destination'))
+    ->fields('l', array('triggers', 'roles', 'pages_type', 'pages', 'destination_type', 'destination'))
     ->orderBy('weight')
     ->execute()
     ->fetchAll();
 
-  if ($path == NULL) {
-    $path = $_GET['q'];
+  if ($current == NULL) {
+    $current = $_GET['q'];
   }
+
   // examine path matches
   foreach ($result as $data) {
     // try to match the subsequent rule
-    if (_login_destination_should_redirect($data, $path)) {
-      // Note: Matching rule with empty destination will break without
-      // performing the actual redirect.
-      return _login_destination_evaluate_destination($data);
+    if (_login_destination_match_rule($data, $trigger, $current)) {
+      // Note: Matching rule with empty destination will cancel redirect.
+      return _login_destination_evaluate_rule($data, $trigger);
     }
   }
 
   // no rule matched
-  return '';
+  return FALSE;
 }
 
 /**
@@ -292,38 +366,65 @@ function _login_destination_role_options() {
 }
 
 /**
+ * Get the current path (before trigger was invoked).
+ */
+function _login_destination_get_current($trigger = '') {
+  if (isset($_GET['current'])) {
+    return check_plain($_GET['current']);
+  }
+
+  if ($trigger == 'login') {
+    return $_GET['q'];
+  }
+
+  // front by default
+  return '';
+}
+
+/**
  * A helper function to determine whether redirection should happen.
  *
  * @return bool TRUE - apply redirect, FALSE - not to apply redirect.
  */
-function _login_destination_should_redirect($rule, $path = NULL) {
-
+function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   global $user;
 
   $type = $rule->pages_type;
   $pages = drupal_strtolower($rule->pages);
-  $roles = unserialize($rule->roles);
 
-  // examine role matches
+  $triggers = unserialize($rule->triggers);
+  if (empty($triggers))
+    $triggers = array();
+
+  $roles = unserialize($rule->roles);
   if (empty($roles))
     $roles = array();
 
   // remove non-existent roles
   $roles = array_intersect_key(_login_destination_role_options(), $roles);
+
+  // examine trigger match
+  if (!array_key_exists($trigger, $triggers)) {
+    return FALSE;
+  }
+
+  // examine role matches
   $roles_intersect = array_intersect_key($roles, $user->roles);
 
-  $role_match = (empty($roles) || !empty($roles_intersect));
+  if (!empty($roles) && empty($roles_intersect)) {
+    return FALSE;
+  }
 
   if ($type < LOGIN_DESTINATION_REDIRECT_PHP) {
-    $alias = drupal_strtolower(drupal_get_path_alias($path));
+    $alias = drupal_strtolower(drupal_get_path_alias($current));
 
     $page_match = drupal_match_path($alias, $pages);
 
-    if ($alias != $path) {
-      $page_match = $page_match || drupal_match_path($path, $pages);
+    if ($alias != $current) {
+      $page_match = $page_match || drupal_match_path($current, $pages);
     }
     $page_match = !($type xor $page_match);
-  } 
+  }
   elseif (module_exists('php')) {
     // Do not execute php if the PHP Filter is off.
     $page_match = _login_destination_eval($pages);
@@ -332,58 +433,57 @@ function _login_destination_should_redirect($rule, $path = NULL) {
     $page_match = FALSE;
   }
 
-  return ($page_match && $role_match);
+  return $page_match;
 }
 
 /**
  * A helper function to evaluate destination path.
- * @global <type> $language
- * @param <type> $form
- * @param <type> $form_state
- * @param <type> $rule
- * @return string
  */
-function _login_destination_evaluate_destination($rule) {
-    $type = $rule->destination_type;
-    $destination_str = $rule->destination;
-    
-    if ($type == LOGIN_DESTINATION_STATIC) {
-      // take only 1st line
-      if (preg_match("!^(.*?)$!", $destination_str, $matches) === 1 ) {
-        $path = $matches[1];
+function _login_destination_evaluate_rule($rule, $trigger = '') {
+  if ($rule->destination_type == LOGIN_DESTINATION_STATIC) {
+    // take only 1st line
+    if (preg_match("!^(.*?)$!", $rule->destination, $matches) === 1 ) {
+      $path = $matches[1];
 
-        if (empty($path)) {
-          // It is better not to use NULL as this may find its way into
-          // drupal_goto.
-          return '';
-        }
-        // External URL
-        elseif (strpos($path, '://') !== FALSE) {
-          return $path;
-        }
-        // Internal URL
-        else {
-          $destination = drupal_parse_url($path);
-          $options = array();
-          $options['query'] = $destination['query'];
-          $options['fragment'] = $destination['fragment'];
-
-          // drupal_goto cares about <front>
-          return array($destination['path'], $options);
-        }
+      if (empty($path)) {
+        return FALSE;
       }
+      // Current path
+      elseif ($path == '<current>') {
+        return _login_destination_get_current($trigger);
+      }
+      // External URL
+      elseif (strpos($path, '://') !== FALSE) {
+        return $path;
+      }
+      // Internal URL
       else {
-        // error - multiple lines
-        return '';
+        $destination = drupal_parse_url($path);
+        $options = array();
+        $options['query'] = $destination['query'];
+        $options['fragment'] = $destination['fragment'];
+
+        // drupal_goto cares about <front>
+        return array($destination['path'], $options);
       }
-    }
-    elseif (module_exists('php')) {
-      // We cannot use the php_eval because we expect array here, but for the
-      // matter of consistent UI we don't do it with the PHP Filter module off.
-      return _login_destination_eval($destination_str);
     }
     else {
-      // PHP code and PHP filter disabled.
+      // error - multiple lines
       return '';
     }
+  }
+  elseif (module_exists('php')) {
+    // We cannot use the php_eval because we expect array here, but for the
+    // matter of consistent UI we don't do it with the PHP Filter module off.
+    $result = _login_destination_eval($rule->destination);
+
+    if (empty($result)) {
+      return FALSE;
+    }
+    return $result;
+  }
+  else {
+    // PHP code and PHP filter disabled.
+    return FALSE;
+  }
 }

@@ -18,6 +18,11 @@ function login_destination_schema() {
         'not null' => TRUE,
         'description' => 'Primary Key: Unique ID.',
       ),
+      'triggers' => array(
+        'type' => 'text',
+        'not null' => TRUE,
+        'description' => 'Triggers on which to perform redirect',
+      ),
       'roles' => array(
         'type' => 'text',
         'not null' => TRUE,
@@ -103,6 +108,7 @@ function login_destination_update_7000() {
     $form_state['values']['destination'] = $snippet;
   }
 
+  $form_state['values']['triggers'] = serialize(array('login'));
   $form_state['values']['roles'] = serialize(array());
 
   drupal_write_record('login_destination', $form_state['values']);
