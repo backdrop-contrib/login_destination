@@ -73,10 +73,16 @@ function login_destination_schema() {
  */
 function login_destination_install() {
   // update the alter option of 'user/logout' to TRUE (menu_save invokes necessary hooks)
-  $result = db_query("SELECT mlid FROM {menu_links} WHERE link_path = 'user/logout' ORDER BY mlid ASC")->fetchAssoc();
+  $result = db_query("SELECT mlid, menu_name FROM {menu_links} WHERE link_path = 'user/logout' OR  link_path = 'user' ORDER BY mlid ASC");
   foreach($result as $res) {
-    $item = menu_link_load($res['mlid']);
-    menu_link_save($item);
+    $item = menu_link_load($res->mlid);
+    $item['options']['alter'] = TRUE;
+    db_update('menu_links')
+      ->fields(array(
+        'options' => serialize($item['options']),
+      ))
+      ->condition('mlid', $item['mlid'])
+      ->execute();
   }
 }
 

@@ -102,7 +102,7 @@ function login_destination_load($id) {
   if (empty($result['roles'])) {
     $result['roles'] = array();
   }
-
+  
   return $result;
 }
 
