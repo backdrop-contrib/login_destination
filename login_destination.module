@@ -390,7 +390,7 @@ function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   global $user;
 
   $type = $rule->pages_type;
-  $pages = drupal_strtolower($rule->pages);
+  $pages = $rule->pages;
 
   $triggers = unserialize($rule->triggers);
   if (empty($triggers))
@@ -416,6 +416,7 @@ function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   }
 
   if ($type < LOGIN_DESTINATION_REDIRECT_PHP) {
+    $pages = drupal_strtolower($pages);
     $alias = drupal_strtolower(drupal_get_path_alias($current));
 
     $page_match = drupal_match_path($alias, $pages);
