@@ -61,7 +61,7 @@ function login_destination_menu() {
     'title' => 'Delete login destination rule',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_delete_form', 5),
-    'access arguments' => array('administer userson'),
+    'access arguments' => array('administer users'),
     'file' => 'login_destination.admin.inc',
   );
   $items['admin/config/people/login-destination/list'] = array(
