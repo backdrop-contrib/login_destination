@@ -211,7 +211,8 @@ function login_destination_menu_link_alter(&$item) {
   // Flag a link to be altered by hook_translated_menu_link_alter().
   // This is called only on menu rebuild, so we have to add this information
   // manually to the database on install. Clearing caches also helps.
-  if ($item['link_path'] == 'user/logout' || $item['link_path'] == 'user') {
+  $paths = array('user/logout', 'user/login', 'user');
+  if (in_array($item['link_path'], $paths)) {
     $item['options']['alter'] = TRUE;
   }
 }
@@ -221,8 +222,9 @@ function login_destination_menu_link_alter(&$item) {
  */
 function login_destination_translated_menu_link_alter(&$item, $map) {
   global $user;
+  $paths = array('user/login', 'user');
   // Append the current path to URL.
-  if ($item['link_path'] == 'user/logout' || ($item['link_path'] == 'user' && user_is_anonymous())) {
+  if ($item['link_path'] == 'user/logout' || (in_array($item['link_path'], $paths) && user_is_anonymous())) {
     $item['localized_options']['query'] = array('current' => $_GET['q']);
   }
 }
