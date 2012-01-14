@@ -414,7 +414,7 @@ function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   $roles = array_intersect_key(_login_destination_role_options(), $roles);
 
   // examine trigger match
-  if (!array_key_exists($trigger, $triggers)) {
+  if (!(empty($triggers) || array_key_exists($trigger, $triggers))) {
     return FALSE;
   }
 
