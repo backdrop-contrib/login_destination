@@ -292,7 +292,10 @@ function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_
     // alter drupal_goto
     if (is_array($destination)) {
       $path = $destination[0];
-      $options = $destination[1];
+      $options = array();
+      if (count($destination) > 1) {
+        $options = $destination[1];
+      }
     }
     else {
       $path = $destination;
@@ -319,6 +322,7 @@ function login_destination_prepare_goto($destination) {
 function login_destination_perform_redirect($trigger = '', $current = NULL) {
   $destination = login_destination_get_destination($trigger, $current);
 
+  // Check if we redirect
   if ($destination !== FALSE) {
     login_destination_prepare_goto($destination);
   }
