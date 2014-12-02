@@ -82,10 +82,10 @@ function theme_login_destination_triggers($variables) {
   foreach ($items as &$item) {
     switch ($item) {
       case 'login':
-        $item = 'Login';
+        $item = t('Login');
         break;
       case 'logout':
-        $item = 'Logout';
+        $item = t('Logout');
         break;
     }
     $output .= $item . "<br/>";
@@ -96,7 +96,7 @@ function theme_login_destination_triggers($variables) {
 
 function theme_login_destination_pages($variables) {
   $type = $variables['pages_type'];
-  
+
   if ($type == LOGIN_DESTINATION_REDIRECT_PHP) {
     return nl2br(check_plain($variables['pages']));
   }
@@ -120,7 +120,7 @@ function theme_login_destination_pages($variables) {
       $output .= "~ ";
     }
     $output .= $page . "<br/>";
-  } 
+  }
 
   return $output;
 }
@@ -178,7 +178,7 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
 
     $form['destination_type'] = array(
       '#type' => 'radios',
-      '#title' => 'Redirect to page',
+      '#title' => t('Redirect to page'),
       '#default_value' => $type,
       '#options' => $options,
     );
@@ -197,9 +197,9 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
   $form['triggers'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Redirect upon triggers'),
-    '#options' => array('login' => 'Login, registration, one-time login link', 'logout' => 'Logout'),
+    '#options' => array('login' => t('Login, registration, one-time login link'), 'logout' => t('Logout')),
     '#default_value' => $triggers,
-    '#description' => 'Redirect only upon selected trigger(s). If you select no triggers, all of them will be used.',
+    '#description' => t('Redirect only upon selected trigger(s). If you select no triggers, all of them will be used.'),
   );
 
   $type = $rule['pages_type'];
@@ -249,7 +249,7 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
     '#title' => t('Redirect users with roles'),
     '#options' => _login_destination_role_options(),
     '#default_value' => $default_role_options,
-    '#description' => 'Redirect only the selected role(s). If you select no roles, all users will be redirected.',
+    '#description' => t('Redirect only the selected role(s). If you select no roles, all users will be redirected.'),
   );
 
   $form['weight'] = array(
@@ -296,7 +296,7 @@ function login_destination_edit_form_submit($form, &$form_state) {
   }
 
   drupal_set_message(t('Login destination to %destination has been saved.', array('%destination' => $form_state['values']['destination'])));
-  
+
   $form_state['redirect'] = 'admin/config/people/login-destination';
 }
 

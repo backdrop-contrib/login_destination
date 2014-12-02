@@ -102,7 +102,7 @@ function login_destination_load($id) {
   if (empty($result['roles'])) {
     $result['roles'] = array();
   }
-  
+
   return $result;
 }
 
@@ -187,14 +187,14 @@ function login_destination_validate($form, &$form_state) {
       }
       break;
   }
-  
+
   // Fix the current page in case of 403 page.
   if ($form['#form_id'] == 'user_login') {
     if(drupal_get_http_header('Status') == '403 Forbidden') {
       $_GET['current'] = $_GET['destination'];
     }
   }
-    
+
 }
 
 /**
