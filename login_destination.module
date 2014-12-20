@@ -373,9 +373,8 @@ function _login_destination_eval($code) {
  * A helper function to provide role options
  */
 function _login_destination_role_options() {
-  // user role selection, without anonymous and authentificated user roles.
+  // user role selection, without anonymous user roles.
   $role_options = array_map('check_plain', user_roles(TRUE));
-  unset($role_options[DRUPAL_AUTHENTICATED_RID]);
   return $role_options;
 }
 
