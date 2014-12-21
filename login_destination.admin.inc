@@ -6,24 +6,20 @@
  */
 
 /**
- * List destination rules.
+ * Form for editing an entire login destination at once.
+ *
+ * Shows list of all login destination.
  */
-function login_destination_overview() {
-  $header = array(
-    t('Destination'),
-    t('Triggers'),
-    t('Pages'),
-    t('Roles'),
-    array('data' => t('Operations'), 'colspan' => 2),
-  );
-  $rows = array();
+function login_destination_overview_form($form, &$form_state) {
 
   // Get all login destination rules from the database.
   $result = db_select('login_destination', 'l')
-    ->fields('l', array('id', 'triggers', 'roles', 'pages_type', 'pages', 'destination'))
+    ->fields('l', array('id', 'triggers', 'roles', 'pages_type', 'pages', 'destination', 'weight', 'enabled'))
     ->orderBy('weight')
     ->execute()
     ->fetchAll();
+
+  $form['#tree'] = TRUE;
 
   // Loop through the categories and add them to the table.
   foreach ($result as $data) {
@@ -36,29 +32,177 @@ function login_destination_overview() {
     if (empty($roles))
       $roles = array();
 
-    $rows[] = array(
-      theme('login_destination_destination', array('destination' => $data->destination)),
-      theme('login_destination_triggers', array('items' => $triggers)),
-      theme('login_destination_pages', array('pages' => $data->pages, 'pages_type' => $data->pages_type)),
-      theme('login_destination_roles', array('items' => $roles)),
-      l(t('Edit'), 'admin/config/people/login-destination/edit/' . $data->id),
-      l(t('Delete'), 'admin/config/people/login-destination/delete/' . $data->id),
+    $form[$data->id]['destination']['#markup'] = theme('login_destination_destination', array('destination' => $data->destination));
+    $form[$data->id]['triggers']['#markup'] = theme('login_destination_triggers', array('items' => $triggers));
+    $form[$data->id]['pages']['#markup'] = theme('login_destination_pages', array('pages' => $data->pages, 'pages_type' => $data->pages_type));
+    $form[$data->id]['roles']['#markup'] = theme('login_destination_roles', array('items' => $roles));
+
+    $form[$data->id]['weight'] = array(
+      '#type' => 'weight',
+      '#title' => t('Weight'),
+      '#delta' => 50,
+      '#default_value' => $data->weight,
+      '#title_display' => 'invisible',
+    );
+
+    $form[$data->id]['enabled'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enabled'),
+      '#default_value' => $data->enabled,
+      '#title_display' => 'invisible',
+    );
+
+    // Build a list of operations.
+    $operations = array();
+    $operations['edit'] = array('#type' => 'link', '#title' => t('edit'), '#href' => 'admin/config/people/login-destination/edit/' . $data->id);
+    $operations['delete'] = array('#type' => 'link', '#title' => t('delete'), '#href' => 'admin/config/people/login-destination/delete/' . $data->id);
+
+    $form[$data->id]['operations'] = $operations;
+
+  }
+
+  if (element_children($form)) {
+    $form['actions'] = array('#type' => 'actions');
+    $form['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save configuration'),
     );
   }
-
-  if (!$rows) {
-    $rows[] = array(array(
-      'data' => t('No rules available.'),
-      'colspan' => 6,
-    ));
+  else {
+    $form['#empty_text'] = t('There is no Login Destination Rule.');
   }
 
-  $build['login-destination_table'] = array(
-    '#theme' => 'table',
-    '#header' => $header,
-    '#rows' => $rows,
+  return $form;
+}
+
+/**
+ * Returns HTML for a login destination list.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - form: A render element representing the form.
+ *
+ * @ingroup themeable
+ */
+function theme_login_destination_overview_form($variables) {
+  $form = $variables['form'];
+
+  drupal_add_tabledrag('login-destination-overview', 'order', 'sibling', 'login-destination-weight');
+
+  $header = array(
+    t('Destination'),
+    t('Triggers'),
+    t('Pages'),
+    t('Roles'),
+    array('data' => t('Enabled'), 'class' => array('checkbox')),
+    t('Weight'),
+    array('data' => t('Operations'), 'colspan' => '2'),
   );
-  return $build;
+
+  $rows = array();
+  foreach (element_children($form) as $ldid) {
+    if (isset($form[$ldid]['enabled'])) {
+
+      $element = &$form[$ldid];
+
+      $operations = array();
+      foreach (element_children($element['operations']) as $op) {
+        $operations[] = array('data' => drupal_render($element['operations'][$op]), 'class' => array('login-destination-operations'));
+      }
+      while (count($operations) < 2) {
+        $operations[] = '';
+      }
+
+      $row = array();
+      $row[] = drupal_render($element['destination']);
+      $row[] = drupal_render($element['triggers']);
+      $row[] = drupal_render($element['pages']);
+      $row[] = drupal_render($element['roles']);
+      $row[] = array('data' => drupal_render($element['enabled']), 'class' => array('checkbox', 'login-destination-enabled'));
+
+      $form[$ldid]['weight']['#attributes']['class'] = array('login-destination-weight');
+
+      $row[] = drupal_render($element['weight']);
+      $row = array_merge($row, $operations);
+      $row = array_merge(array('data' => $row), array());
+      $row['class'][] = 'draggable';
+      $rows[] = $row;
+    }
+  }
+
+  $output = '';
+  if (empty($rows)) {
+    $rows[] = array(array('data' => $form['#empty_text'], 'colspan' => '7'));
+  }
+
+  $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'login-destination-overview')));
+  $output .= drupal_render_children($form);
+
+  return $output;
+}
+
+/**
+ * Submit handler for the login destination overview form.
+ *
+ * This function update the login destination rule attribute
+ * like rules are enabled/disabled or its weight.
+ *
+ * @see login_destination_overview_form()
+ */
+function login_destination_overview_form_submit($form, &$form_state) {
+  $element = &$form_state['values'];
+  foreach(element_children($element) as $ldid) {
+    if (isset($form[$ldid]['enabled'])) {
+      $login_destination_rules[$ldid] = $element[$ldid];
+      $login_destination_rules[$ldid]['ldid'] = $ldid;
+    }
+  }
+
+  foreach ($login_destination_rules as $ldid => $login_destination_rule) {
+    _login_destination_update_rules($login_destination_rule);
+  }
+
+  drupal_set_message(t('Your configuration has been saved.'), 'status');
+}
+
+/**
+ * Save all our changed items to the database.
+ *
+ * @param $login_destination_rule
+ *   An associative array representing a login destination item:
+ *   - enabled: (required) can contain 0 or 1, if rule is enabled then
+ *   it should be 1 else 0.
+ *   - weight: (required) can contain any integer value.
+ *
+ * @return
+ *   The ldid of the saved login destination rule, or FALSE
+ *   if the login destination rule could not be saved.
+ */
+function _login_destination_update_rules($login_destination_rule) {
+
+  if (!(isset($login_destination_rule['enabled']) && isset($login_destination_rule['weight']) && isset($login_destination_rule['ldid']))) {
+    return FALSE;
+  }
+
+  if ($login_destination_rule['enabled'] != 0 && $login_destination_rule['enabled'] != 1) {
+    return FALSE;
+  }
+
+  $login_destination_rule['weight'] = intval($login_destination_rule['weight']);
+
+  if (!is_int($login_destination_rule['weight'])) {
+    return FALSE;
+  }
+
+  db_update('login_destination')
+    ->fields(array(
+      'enabled' => $login_destination_rule['enabled'],
+      'weight' => $login_destination_rule['weight'],
+    ))
+    ->condition('id', $login_destination_rule['ldid'])
+    ->execute();
+
+  return $login_destination_rule['ldid'];
 }
 
 function theme_login_destination_destination($variables) {
@@ -250,13 +394,6 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
     '#options' => _login_destination_role_options(),
     '#default_value' => $default_role_options,
     '#description' => t('Redirect only the selected role(s). If you select no roles, all users will be redirected.'),
-  );
-
-  $form['weight'] = array(
-    '#type' => 'weight',
-    '#title' => t('Weight'),
-    '#default_value' => $rule['weight'],
-    '#description' => t('When evaluating login destination rules, those with lighter (smaller) weights get evaluated before rules with heavier (larger) weights.'),
   );
 
   $form['actions'] = array('#type' => 'actions');

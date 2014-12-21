@@ -58,6 +58,13 @@ function login_destination_schema() {
         'default' => 0,
         'description' => "The rule's weight.",
       ),
+      'enabled' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+        'default' => 1,
+        'description' => "The rule enabled/disabled status.",
+      ),
     ),
     'primary key' => array('id'),
     'indexes' => array(
@@ -137,4 +144,18 @@ function login_destination_update_7000() {
   variable_del('ld_destination');
   variable_del('ld_url_type');
   variable_del('ld_url_destination');
+}
+
+/**
+ * Implementation of hook__update_N().
+ */
+function login_destination_update_7001() {
+  $spec = array(
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 1,
+  );
+
+  db_add_field('login_destination', 'enabled', $spec);
 }

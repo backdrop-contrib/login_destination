@@ -36,7 +36,8 @@ function login_destination_menu() {
   $items['admin/config/people/login-destination'] = array(
     'title' => 'Login destinations',
     'description' => 'Customize the destination that the user is redirected to after login.',
-    'page callback' => 'login_destination_overview',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('login_destination_overview_form'),
     'access arguments' => array('administer users'),
     'file' => 'login_destination.admin.inc',
     'weight' => 10,
@@ -126,6 +127,10 @@ function login_destination_theme() {
     'login_destination_roles' => array(
       'variables' => array('items' => NULL),
       'file' => 'login_destination.admin.inc',
+    ),
+    'login_destination_overview_form' => array(
+      'file' => 'login_destination.admin.inc',
+      'render element' => 'form',
     ),
   );
 }
@@ -336,7 +341,7 @@ function login_destination_get_destination($trigger = '', $current = NULL) {
   // Get all the login destination rules from the database.
   $result = db_select('login_destination', 'l')
     //->addTag('translatable')
-    ->fields('l', array('triggers', 'roles', 'pages_type', 'pages', 'destination_type', 'destination'))
+    ->fields('l', array('triggers', 'roles', 'pages_type', 'pages', 'destination_type', 'destination', 'enabled'))
     ->orderBy('weight')
     ->execute()
     ->fetchAll();
@@ -401,6 +406,11 @@ function _login_destination_get_current($trigger = '') {
  */
 function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   global $user;
+
+  // Check rule is enabled or not.
+  if ($rule->enabled == 0) {
+    return FALSE;
+  }
 
   $type = $rule->pages_type;
   $pages = $rule->pages;
