@@ -14,7 +14,17 @@ function login_destination_overview_form($form, &$form_state) {
 
   // Get all login destination rules from the database.
   $result = db_select('login_destination', 'l')
-    ->fields('l', array('id', 'triggers', 'roles', 'pages_type', 'pages', 'destination', 'weight', 'enabled'))
+    ->fields('l', array(
+      'id',
+      'triggers',
+      'roles',
+      'pages_type',
+      'pages',
+      'destination',
+      'weight',
+      'enabled',
+      )
+    )
     ->orderBy('weight')
     ->execute()
     ->fetchAll();
@@ -25,12 +35,14 @@ function login_destination_overview_form($form, &$form_state) {
   foreach ($result as $data) {
 
     $triggers = array_map('check_plain', unserialize($data->triggers));
-    if (empty($triggers))
+    if (empty($triggers)) {
       $triggers = array();
+    }
 
     $roles = array_map('check_plain', unserialize($data->roles));
-    if (empty($roles))
+    if (empty($roles)) {
       $roles = array();
+    }
 
     $form[$data->id]['destination']['#markup'] = theme('login_destination_destination', array('destination' => $data->destination));
     $form[$data->id]['triggers']['#markup'] = theme('login_destination_triggers', array('items' => $triggers));
@@ -54,8 +66,17 @@ function login_destination_overview_form($form, &$form_state) {
 
     // Build a list of operations.
     $operations = array();
-    $operations['edit'] = array('#type' => 'link', '#title' => t('edit'), '#href' => 'admin/config/people/login-destination/edit/' . $data->id);
-    $operations['delete'] = array('#type' => 'link', '#title' => t('delete'), '#href' => 'admin/config/people/login-destination/delete/' . $data->id);
+    $operations['edit'] = array(
+      '#type' => 'link',
+      '#title' => t('edit'),
+      '#href' => 'admin/config/people/login-destination/edit/' . $data->id,
+    );
+
+    $operations['delete'] = array(
+      '#type' => 'link',
+      '#title' => t('delete'),
+      '#href' => 'admin/config/people/login-destination/delete/' . $data->id,
+    );
 
     $form[$data->id]['operations'] = $operations;
 
@@ -78,7 +99,7 @@ function login_destination_overview_form($form, &$form_state) {
 /**
  * Returns HTML for a login destination list.
  *
- * @param $variables
+ * @param array $variables
  *   An associative array containing:
  *   - form: A render element representing the form.
  *
@@ -118,7 +139,12 @@ function theme_login_destination_overview_form($variables) {
       $row[] = drupal_render($element['triggers']);
       $row[] = drupal_render($element['pages']);
       $row[] = drupal_render($element['roles']);
-      $row[] = array('data' => drupal_render($element['enabled']), 'class' => array('checkbox', 'login-destination-enabled'));
+      $row[] = array(
+        'data' => drupal_render($element['enabled']),
+        'class' => array(
+          'checkbox', 'login-destination-enabled',
+        ),
+      );
 
       $form[$ldid]['weight']['#attributes']['class'] = array('login-destination-weight');
 
@@ -132,10 +158,24 @@ function theme_login_destination_overview_form($variables) {
 
   $output = '';
   if (empty($rows)) {
-    $rows[] = array(array('data' => $form['#empty_text'], 'colspan' => '7'));
+    $rows[] = array(
+      array(
+        'data' => $form['#empty_text'],
+        'colspan' => '7',
+      ),
+    );
   }
 
-  $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'login-destination-overview')));
+  $table_arguments = array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(
+      'id' => 'login-destination-overview',
+    ),
+  );
+
+  $output .= theme('table', $table_arguments);
+
   $output .= drupal_render_children($form);
 
   return $output;
@@ -151,7 +191,7 @@ function theme_login_destination_overview_form($variables) {
  */
 function login_destination_overview_form_submit($form, &$form_state) {
   $element = &$form_state['values'];
-  foreach(element_children($element) as $ldid) {
+  foreach (element_children($element) as $ldid) {
     if (isset($form[$ldid]['enabled'])) {
       $login_destination_rules[$ldid] = $element[$ldid];
       $login_destination_rules[$ldid]['ldid'] = $ldid;
@@ -168,13 +208,13 @@ function login_destination_overview_form_submit($form, &$form_state) {
 /**
  * Save all our changed items to the database.
  *
- * @param $login_destination_rule
+ * @param array $login_destination_rule
  *   An associative array representing a login destination item:
  *   - enabled: (required) can contain 0 or 1, if rule is enabled then
  *   it should be 1 else 0.
  *   - weight: (required) can contain any integer value.
  *
- * @return
+ * @return bool
  *   The ldid of the saved login destination rule, or FALSE
  *   if the login destination rule could not be saved.
  */
@@ -205,6 +245,9 @@ function _login_destination_update_rules($login_destination_rule) {
   return $login_destination_rule['ldid'];
 }
 
+/**
+ * Render a destination of login destination rule.
+ */
 function theme_login_destination_destination($variables) {
   $output = nl2br(check_plain($variables['destination']));
 
@@ -215,6 +258,9 @@ function theme_login_destination_destination($variables) {
   return $output;
 }
 
+/**
+ * Render a trigger of login destination rule.
+ */
 function theme_login_destination_triggers($variables) {
   $items = array_map('check_plain', $variables['items']);
 
@@ -228,6 +274,7 @@ function theme_login_destination_triggers($variables) {
       case 'login':
         $item = t('Login');
         break;
+
       case 'logout':
         $item = t('Logout');
         break;
@@ -238,6 +285,9 @@ function theme_login_destination_triggers($variables) {
   return $output;
 }
 
+/**
+ * Render a page type of login destination rule.
+ */
 function theme_login_destination_pages($variables) {
   $type = $variables['pages_type'];
 
@@ -269,6 +319,9 @@ function theme_login_destination_pages($variables) {
   return $output;
 }
 
+/**
+ * Render a roles of login destination rule.
+ */
 function theme_login_destination_roles($variables) {
   $items = array_values(array_intersect_key(_login_destination_role_options(), $variables['items']));
 
@@ -283,7 +336,7 @@ function theme_login_destination_roles($variables) {
  * Category edit page.
  */
 function login_destination_edit_form($form, &$form_state, array $rule = array()) {
-  // default values
+  // Default values.
   $rule += array(
     'triggers' => array(),
     'roles' => array(),
@@ -311,13 +364,24 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
   }
   else {
     $options = array(
-        LOGIN_DESTINATION_STATIC => t('Internal page or external URL'),
-      );
-    $description = t("Specify page by using its path. Example path is %blog for the blog page. %front is the front page. %current is the current page. Precede with http:// for an external URL. Leave empty to redirect to a default page.", array('%blog' => 'blog', '%front' => '<front>', '%current' => '<current>'));
+      LOGIN_DESTINATION_STATIC => t('Internal page or external URL'),
+    );
+    $description = t("Specify page by using its path. Example path is %blog for the blog page. %front is the front page. %current is the current page. Precede with http:// for an external URL. Leave empty to redirect to a default page.", array(
+        '%blog' => 'blog',
+        '%front' => '<front>',
+        '%current' => '<current>',
+      )
+    );
 
     if (module_exists('php') && $access) {
       $options += array(LOGIN_DESTINATION_SNIPPET => t('Page returned by this PHP code (experts only)'));
-      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array of params that the %function function will understand, e.g. %example. For more information, see the online API entry for <a href="@url">url function</a>. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>', '%function' => 'url($path = \'\', array $options = array())', '%example' => '<?php return array(\'blog\', array(\'fragment\' => \'overlay=admin/config\', ), ); ?>', '@url' => 'http://api.drupal.org/api/drupal/includes--common.inc/function/url/7'));
+      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array of params that the %function function will understand, for example. %example. For more information, see the online API entry for <a href="@url">url function</a>. Note that executing incorrect PHP code can break your Drupal site.', array(
+          '%php' => '<?php ?>',
+          '%function' => 'url($path = \'\', array $options = array())',
+          '%example' => '<?php return array(\'blog\', array(\'fragment\' => \'overlay=admin/config\', ), ); ?>',
+          '@url' => 'http://api.drupal.org/api/drupal/includes--common.inc/function/url/7',
+        )
+      );
     }
 
     $form['destination_type'] = array(
@@ -360,10 +424,18 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
   }
   else {
     $options = array(
-        LOGIN_DESTINATION_REDIRECT_NOTLISTED => t('All pages except those listed'),
-        LOGIN_DESTINATION_REDIRECT_LISTED => t('Only the listed pages'),
-      );
-    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page. %login is the login form. %register is the registration form. %reset is the one-time login (e-mail validation).", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>', '%login' => 'user', '%register' => 'user/register', '%reset' => 'user/*/edit'));
+      LOGIN_DESTINATION_REDIRECT_NOTLISTED => t('All pages except those listed'),
+      LOGIN_DESTINATION_REDIRECT_LISTED => t('Only the listed pages'),
+    );
+    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page. %login is the login form. %register is the registration form. %reset is the one-time login (e-mail validation).", array(
+        '%blog' => 'blog',
+        '%blog-wildcard' => 'blog/*',
+        '%front' => '<front>',
+        '%login' => 'user',
+        '%register' => 'user/register',
+        '%reset' => 'user/*/edit',
+      )
+    );
 
     if (module_exists('php') && $access) {
       $options += array(LOGIN_DESTINATION_REDIRECT_PHP => t('Pages on which this PHP code returns <code>TRUE</code> (experts only)'));

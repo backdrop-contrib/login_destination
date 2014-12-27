@@ -76,12 +76,13 @@ function login_destination_schema() {
 }
 
 /**
- * Implementation of hook_install().
+ * Implements hook_install().
  */
 function login_destination_install() {
-  // update the alter option of 'user/logout' to TRUE (menu_save invokes necessary hooks)
+  // Update the alter option of 'user/logout' to TRUE,
+  // (menu_save invokes necessary hooks).
   $result = db_query("SELECT mlid, menu_name FROM {menu_links} WHERE link_path = 'user/logout' OR link_path = 'user/login' OR  link_path = 'user' ORDER BY mlid ASC");
-  foreach($result as $res) {
+  foreach ($result as $res) {
     $item = menu_link_load($res->mlid);
     $item['options']['alter'] = TRUE;
     db_update('menu_links')
@@ -94,13 +95,16 @@ function login_destination_install() {
 }
 
 /**
- * Implementation of hook_uninstall().
+ * Implements hook_uninstall().
  */
 function login_destination_uninstall() {
   variable_del('login_destination_preserve_destination');
   variable_del('login_destination_profile_redirect');
 }
 
+/**
+ * Implements hook_update_N().
+ */
 function login_destination_update_7000() {
   $type = variable_get('ld_condition_type', 'always');
   $snippet = variable_get('ld_condition_snippet', '');
@@ -124,7 +128,7 @@ function login_destination_update_7000() {
 
   if ($type == 'snippet') {
     $form_state['values']['destination_type'] = 1;
-    // syntax for return value has changed.
+    // Syntax for return value has changed.
     $form_state['values']['destination'] = '<?php /* ' . $snippet . ' */ ?>';
   }
   else {
@@ -147,7 +151,7 @@ function login_destination_update_7000() {
 }
 
 /**
- * Implementation of hook__update_N().
+ * Implements hook_update_N().
  */
 function login_destination_update_7001() {
   $spec = array(

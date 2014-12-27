@@ -5,17 +5,17 @@
  * Control where users are directed to, once they login
  */
 
-// Page constants
+// Page constants.
 define('LOGIN_DESTINATION_REDIRECT_NOTLISTED', 0);
 define('LOGIN_DESTINATION_REDIRECT_LISTED', 1);
 define('LOGIN_DESTINATION_REDIRECT_PHP', 2);
 
-// Destination constants
+// Destination constants.
 define('LOGIN_DESTINATION_STATIC', 0);
 define('LOGIN_DESTINATION_SNIPPET', 1);
 
 /**
- * Implement hook_help().
+ * Implements hook_help().
  */
 function login_destination_help($path, $arg) {
   switch ($path) {
@@ -24,6 +24,7 @@ function login_destination_help($path, $arg) {
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('The Login Destination module allows you to customize the destination that the user is redirected to after logging in, registering to the site, using a one-time login link or logging out. The destination can be an internal page or an external URL. You may specify certain conditions like pages or user roles and make the destination depend upon them. You may also use a PHP snippets to provide custom conditions and destinations. Note that PHP Filter module has to be enabled and you have to be granted the "Use PHP for settings" permissions to be able to enter PHP code.') . '</p>';
       return $output;
+
     case 'admin/config/people/login-destination':
       return '<p>' . t('Login destination rules are evaluated each time a user logs in, registers to the site, uses a one-time login link or logs out. Each rule consists of the destination, path conditions and user roles conditions. First matching rule gets executed.') . '</p>';
   }
@@ -108,7 +109,7 @@ function login_destination_load($id) {
 }
 
 /**
- * Implements hook_theme
+ * Implements hook_theme().
  */
 function login_destination_theme() {
   return array(
@@ -136,7 +137,7 @@ function login_destination_theme() {
 }
 
 /**
- * Implements hook_form_alter
+ * Implements hook_form_alter().
  */
 function login_destination_form_alter(&$form, &$form_state, $form_id) {
   // We redirect by using the drupal_goto_alter hook. If we simply
@@ -157,14 +158,16 @@ function login_destination_form_alter(&$form, &$form_state, $form_id) {
   // original submit function from user module.
 
   switch ($form_id) {
-    case 'user_register_form': // user register page
-    case 'user_login': // user login page
+    // User register page and user login page.
+    case 'user_register_form':
+    case 'user_login':
       $form['#validate'][] = 'login_destination_validate';
       break;
   }
 
   switch ($form_id) {
-    case 'user_profile_form': // one-time login, password reset
+    // One-time login, password reset.
+    case 'user_profile_form':
       if (isset($_GET['pass-reset-token'])) {
         // Redirect only from user_pass_reset
         // You have to explicitally turn on the option to always redirect from
@@ -186,6 +189,7 @@ function login_destination_validate($form, &$form_state) {
         $_GET['q'] = 'user/register';
       }
       break;
+
     case 'user_login':
       if (drupal_match_path($_GET['q'], 'user/register')) {
         $_GET['q'] = 'user';
@@ -195,7 +199,7 @@ function login_destination_validate($form, &$form_state) {
 
   // Fix the current page in case of 403 page.
   if ($form['#form_id'] == 'user_login') {
-    if(drupal_get_http_header('Status') == '403 Forbidden') {
+    if (drupal_get_http_header('Status') == '403 Forbidden') {
       $_GET['current'] = $_GET['destination'];
     }
   }
@@ -210,7 +214,7 @@ function login_destination_submit($form, &$form_state) {
 }
 
 /**
- * Implements hook_menu_link_alter
+ * Implements hook_menu_link_alter().
  */
 function login_destination_menu_link_alter(&$item) {
   // Flag a link to be altered by hook_translated_menu_link_alter().
@@ -223,7 +227,7 @@ function login_destination_menu_link_alter(&$item) {
 }
 
 /**
- * Implements hook_translated_menu_link_alter
+ * Implements hook_translated_menu_link_alter().
  */
 function login_destination_translated_menu_link_alter(&$item, $map) {
   global $user;
@@ -235,7 +239,7 @@ function login_destination_translated_menu_link_alter(&$item, $map) {
 }
 
 /**
- * Implements hook_page_alter
+ * Implements hook_page_alter().
  */
 function login_destination_page_alter(&$page) {
   // Substitute toolbar's pre_render function to change links.
@@ -255,7 +259,7 @@ function login_destination_toolbar_pre_render($toolbar) {
 }
 
 /**
- * Implements hook_user_login
+ * Implements hook_user_login().
  */
 function login_destination_user_login(&$edit, $account) {
   if (!isset($_POST['form_id']) || $_POST['form_id'] != 'user_pass_reset' || variable_get('login_destination_immediate_redirect', FALSE)) {
@@ -264,7 +268,7 @@ function login_destination_user_login(&$edit, $account) {
 }
 
 /**
- * Implements hook_user_insert
+ * Implements hook_user_insert().
  */
 function login_destination_user_insert(&$edit, $account, $category) {
   global $user;
@@ -277,14 +281,14 @@ function login_destination_user_insert(&$edit, $account, $category) {
 }
 
 /**
- * Implements hook_user_logout
+ * Implements hook_user_logout().
  */
 function login_destination_user_logout($account) {
   login_destination_perform_redirect('logout', _login_destination_get_current('logout'));
 }
 
 /**
- * Implements hook_drupal_goto_alter
+ * Implements hook_drupal_goto_alter().
  */
 function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_code) {
   // Note that this functionality cannot be backported do 6.x as Drupal 6 does
@@ -294,7 +298,7 @@ function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_
   if (isset($GLOBALS['destination'])) {
     $destination = $GLOBALS['destination'];
 
-    // alter drupal_goto
+    // Alter drupal_goto.
     if (is_array($destination)) {
       $path = $destination[0];
       $options = array();
@@ -312,7 +316,7 @@ function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_
  * Pass destination to drupal_goto.
  */
 function login_destination_prepare_goto($destination) {
-  // Check if $_GET['destination'] should overwrite us
+  // Check if $_GET['destination'] should overwrite us.
   if (!isset($_GET['destination']) || !variable_get('login_destination_preserve_destination', FALSE)) {
     $GLOBALS['destination'] = $destination;
   }
@@ -320,14 +324,18 @@ function login_destination_prepare_goto($destination) {
 
 /**
  * Evaluate rules and perform redirect.
+ *
  * This function is intended to be used by external modules.
- * @param <type> $trigger
- * @param <type> $current if null $_GET['q'] is used
+ *
+ * @param string $trigger
+ *   Action of login destination rule.
+ * @param string $current
+ *   Path, if null $_GET['q'] is used.
  */
 function login_destination_perform_redirect($trigger = '', $current = NULL) {
   $destination = login_destination_get_destination($trigger, $current);
 
-  // Check if we redirect
+  // Check if we redirect.
   if ($destination !== FALSE) {
     login_destination_prepare_goto($destination);
   }
@@ -335,13 +343,22 @@ function login_destination_perform_redirect($trigger = '', $current = NULL) {
 
 /**
  * Process all destination rules and return destination path.
+ *
  * This function is intended to be used by external modules.
  */
 function login_destination_get_destination($trigger = '', $current = NULL) {
   // Get all the login destination rules from the database.
   $result = db_select('login_destination', 'l')
-    //->addTag('translatable')
-    ->fields('l', array('triggers', 'roles', 'pages_type', 'pages', 'destination_type', 'destination', 'enabled'))
+    ->fields('l', array(
+      'triggers',
+      'roles',
+      'pages_type',
+      'pages',
+      'destination_type',
+      'destination',
+      'enabled',
+      )
+    )
     ->orderBy('weight')
     ->execute()
     ->fetchAll();
@@ -350,16 +367,16 @@ function login_destination_get_destination($trigger = '', $current = NULL) {
     $current = $_GET['q'];
   }
 
-  // examine path matches
+  // Examine path matches.
   foreach ($result as $data) {
-    // try to match the subsequent rule
+    // Try to match the subsequent rule.
     if (_login_destination_match_rule($data, $trigger, $current)) {
       // Note: Matching rule with empty destination will cancel redirect.
       return _login_destination_evaluate_rule($data, $trigger);
     }
   }
 
-  // no rule matched
+  // No rule matched.
   return FALSE;
 }
 
@@ -375,10 +392,10 @@ function _login_destination_eval($code) {
 }
 
 /**
- * A helper function to provide role options
+ * A helper function to provide role options.
  */
 function _login_destination_role_options() {
-  // user role selection, without anonymous user roles.
+  // User role selection, without anonymous user roles.
   $role_options = array_map('check_plain', user_roles(TRUE));
   return $role_options;
 }
@@ -395,14 +412,15 @@ function _login_destination_get_current($trigger = '') {
     return $_GET['q'];
   }
 
-  // front by default
+  // Front by default.
   return '';
 }
 
 /**
  * A helper function to determine whether redirection should happen.
  *
- * @return bool TRUE - apply redirect, FALSE - not to apply redirect.
+ * @return bool
+ *   TRUE - apply redirect, FALSE - not to apply redirect.
  */
 function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   global $user;
@@ -416,22 +434,24 @@ function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   $pages = $rule->pages;
 
   $triggers = unserialize($rule->triggers);
-  if (empty($triggers))
+  if (empty($triggers)) {
     $triggers = array();
+  }
 
   $roles = unserialize($rule->roles);
-  if (empty($roles))
+  if (empty($roles)) {
     $roles = array();
+  }
 
-  // remove non-existent roles
+  // Remove non-existent roles.
   $roles = array_intersect_key(_login_destination_role_options(), $roles);
 
-  // examine trigger match
+  // Examine trigger match.
   if (!(empty($triggers) || array_key_exists($trigger, $triggers))) {
     return FALSE;
   }
 
-  // examine role matches
+  // Examine role matches.
   $roles_intersect = array_intersect_key($roles, $user->roles);
 
   if (!empty($roles) && empty($roles_intersect)) {
@@ -465,34 +485,34 @@ function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
  */
 function _login_destination_evaluate_rule($rule, $trigger = '') {
   if ($rule->destination_type == LOGIN_DESTINATION_STATIC) {
-    // take only 1st line
-    if (preg_match("!^(.*?)$!", $rule->destination, $matches) === 1 ) {
+    // Take only 1st line.
+    if (preg_match("!^(.*?)$!", $rule->destination, $matches) === 1) {
       $path = $matches[1];
 
       if (empty($path)) {
         return FALSE;
       }
-      // Current path
+      // Current path.
       elseif ($path == '<current>') {
         return _login_destination_get_current($trigger);
       }
-      // External URL
+      // External URL.
       elseif (strpos($path, '://') !== FALSE) {
         return $path;
       }
-      // Internal URL
+      // Internal URL.
       else {
         $destination = drupal_parse_url($path);
         $options = array();
         $options['query'] = $destination['query'];
         $options['fragment'] = $destination['fragment'];
 
-        // drupal_goto cares about <front>
+        // Drupal api, drupal_goto cares about <front>.
         return array($destination['path'], $options);
       }
     }
     else {
-      // error - multiple lines
+      // Error - multiple lines.
       return '';
     }
   }
