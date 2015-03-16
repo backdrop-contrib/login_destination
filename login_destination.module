@@ -15,19 +15,14 @@ define('LOGIN_DESTINATION_STATIC', 0);
 define('LOGIN_DESTINATION_SNIPPET', 1);
 
 /**
- * Implements hook_help().
- */
-function login_destination_help($path, $arg) {
-  switch ($path) {
-    case 'admin/help#login_destination':
-      $output = '';
-      $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Login Destination module allows you to customize the destination that the user is redirected to after logging in, registering to the site, using a one-time login link or logging out. The destination can be an internal page or an external URL. You may specify certain conditions like pages or user roles and make the destination depend upon them. You may also use a PHP snippets to provide custom conditions and destinations. Note that PHP Filter module has to be enabled and you have to be granted the "Use PHP for settings" permissions to be able to enter PHP code.') . '</p>';
-      return $output;
-
-    case 'admin/config/people/login-destination':
-      return '<p>' . t('Login destination rules are evaluated each time a user logs in, registers to the site, uses a one-time login link or logs out. Each rule consists of the destination, path conditions and user roles conditions. First matching rule gets executed.') . '</p>';
-  }
+* Implements hook_config_info().
+*/
+function login_destination_config_info() {
+  $prefixes['login_destination.settings'] = array(
+    'label' => t('Main settings'),
+    'group' => t('Login Destination'),
+  );
+  return $prefixes;
 }
 
 /**
@@ -37,7 +32,7 @@ function login_destination_menu() {
   $items['admin/config/people/login-destination'] = array(
     'title' => 'Login destinations',
     'description' => 'Customize the destination that the user is redirected to after login.',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('login_destination_overview_form'),
     'access arguments' => array('administer users'),
     'file' => 'login_destination.admin.inc',
@@ -45,7 +40,7 @@ function login_destination_menu() {
   );
   $items['admin/config/people/login-destination/add'] = array(
     'title' => 'Add login destination rule',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('login_destination_edit_form'),
     'access arguments' => array('administer users'),
     'type' => MENU_LOCAL_ACTION,
@@ -54,14 +49,14 @@ function login_destination_menu() {
   );
   $items['admin/config/people/login-destination/edit/%login_destination'] = array(
     'title' => 'Edit login destination rule',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('login_destination_edit_form', 5),
     'access arguments' => array('administer users'),
     'file' => 'login_destination.admin.inc',
   );
   $items['admin/config/people/login-destination/delete/%login_destination'] = array(
     'title' => 'Delete login destination rule',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('login_destination_delete_form', 5),
     'access arguments' => array('administer users'),
     'file' => 'login_destination.admin.inc',
@@ -74,7 +69,7 @@ function login_destination_menu() {
   $items['admin/config/people/login-destination/settings'] = array(
     'title' => 'Settings',
     'description' => 'Change Login Destination settings.',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('login_destination_settings'),
     'access arguments' => array('administer users'),
     'type' => MENU_LOCAL_TASK,
@@ -140,12 +135,12 @@ function login_destination_theme() {
  * Implements hook_form_alter().
  */
 function login_destination_form_alter(&$form, &$form_state, $form_id) {
-  // We redirect by using the drupal_goto_alter hook. If we simply
-  // call drupal_goto() it may break compability with other modules. If we set
+  // We redirect by using the backdrop_goto_alter hook. If we simply
+  // call backdrop_goto() it may break compability with other modules. If we set
   // the $_GET['destination'] variable we will loose the possibility to redirect
   // to an external URL.
 
-  // Please note the the system_goto_action() calls drupal_goto()
+  // Please note the the system_goto_action() calls backdrop_goto()
   // More on this issue http://drupal.org/node/732542.
 
   // If we add the $form_state['redirect'] here it will be overriden by the
@@ -185,13 +180,13 @@ function login_destination_validate($form, &$form_state) {
   // LoginToboggan's unified page is rendered dynamically. Fix it.
   switch ($form['#form_id']) {
     case 'user_register_form':
-      if (drupal_match_path($_GET['q'], 'user')) {
+      if (backdrop_match_path($_GET['q'], 'user')) {
         $_GET['q'] = 'user/register';
       }
       break;
 
     case 'user_login':
-      if (drupal_match_path($_GET['q'], 'user/register')) {
+      if (backdrop_match_path($_GET['q'], 'user/register')) {
         $_GET['q'] = 'user';
       }
       break;
@@ -199,7 +194,7 @@ function login_destination_validate($form, &$form_state) {
 
   // Fix the current page in case of 403 page.
   if ($form['#form_id'] == 'user_login') {
-    if (drupal_get_http_header('Status') == '403 Forbidden') {
+    if (backdrop_get_http_header('Status') == '403 Forbidden') {
       $_GET['current'] = $_GET['destination'];
     }
   }
@@ -262,7 +257,7 @@ function login_destination_toolbar_pre_render($toolbar) {
  * Implements hook_user_login().
  */
 function login_destination_user_login(&$edit, $account) {
-  if (!isset($_POST['form_id']) || $_POST['form_id'] != 'user_pass_reset' || variable_get('login_destination_immediate_redirect', FALSE)) {
+  if (!isset($_POST['form_id']) || $_POST['form_id'] != 'user_pass_reset' || config_get('login_destination.settings', 'immediate_redirect')) {
     login_destination_perform_redirect('login');
   }
 }
@@ -288,17 +283,17 @@ function login_destination_user_logout($account) {
 }
 
 /**
- * Implements hook_drupal_goto_alter().
+ * Implements hook_backdrop_goto_alter().
  */
-function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_code) {
+function login_destination_backdrop_goto_alter(&$path, &$options, &$http_response_code) {
   // Note that this functionality cannot be backported do 6.x as Drupal 6 does
-  // not call drupal_alter for drupal_goto.
+  // not call backdrop_alter for backdrop_goto.
 
   // This actually may be used also by templates.
   if (isset($GLOBALS['destination'])) {
     $destination = $GLOBALS['destination'];
 
-    // Alter drupal_goto.
+    // Alter backdrop_goto.
     if (is_array($destination)) {
       $path = $destination[0];
       $options = array();
@@ -313,11 +308,11 @@ function login_destination_drupal_goto_alter(&$path, &$options, &$http_response_
 }
 
 /**
- * Pass destination to drupal_goto.
+ * Pass destination to backdrop_goto.
  */
 function login_destination_prepare_goto($destination) {
   // Check if $_GET['destination'] should overwrite us.
-  if (!isset($_GET['destination']) || !variable_get('login_destination_preserve_destination', FALSE)) {
+  if (!isset($_GET['destination']) || !config_get('login_destination.settings', 'preserve_destination')) {
     $GLOBALS['destination'] = $destination;
   }
 }
@@ -459,13 +454,13 @@ function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   }
 
   if ($type < LOGIN_DESTINATION_REDIRECT_PHP) {
-    $pages = drupal_strtolower($pages);
-    $alias = drupal_strtolower(drupal_get_path_alias($current));
+    $pages = backdrop_strtolower($pages);
+    $alias = backdrop_strtolower(backdrop_get_path_alias($current));
 
-    $page_match = drupal_match_path($alias, $pages);
+    $page_match = backdrop_match_path($alias, $pages);
 
     if ($alias != $current) {
-      $page_match = $page_match || drupal_match_path($current, $pages);
+      $page_match = $page_match || backdrop_match_path($current, $pages);
     }
     $page_match = !($type xor $page_match);
   }
@@ -502,12 +497,12 @@ function _login_destination_evaluate_rule($rule, $trigger = '') {
       }
       // Internal URL.
       else {
-        $destination = drupal_parse_url($path);
+        $destination = backdrop_parse_url($path);
         $options = array();
         $options['query'] = $destination['query'];
         $options['fragment'] = $destination['fragment'];
 
-        // Drupal api, drupal_goto cares about <front>.
+        // Drupal api, backdrop_goto cares about <front>.
         return array($destination['path'], $options);
       }
     }

@@ -1,4 +1,4 @@
 name = Login Destination
 description = Customize the destination that the user is redirected to after login.
-core = 7.x
+backdrop = 1.x
 configure = admin/config/people/login-destination

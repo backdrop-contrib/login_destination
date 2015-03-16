@@ -108,7 +108,7 @@ function login_destination_overview_form($form, &$form_state) {
 function theme_login_destination_overview_form($variables) {
   $form = $variables['form'];
 
-  drupal_add_tabledrag('login-destination-overview', 'order', 'sibling', 'login-destination-weight');
+  backdrop_add_tabledrag('login-destination-overview', 'order', 'sibling', 'login-destination-weight');
 
   $header = array(
     t('Destination'),
@@ -128,19 +128,19 @@ function theme_login_destination_overview_form($variables) {
 
       $operations = array();
       foreach (element_children($element['operations']) as $op) {
-        $operations[] = array('data' => drupal_render($element['operations'][$op]), 'class' => array('login-destination-operations'));
+        $operations[] = array('data' => backdrop_render($element['operations'][$op]), 'class' => array('login-destination-operations'));
       }
       while (count($operations) < 2) {
         $operations[] = '';
       }
 
       $row = array();
-      $row[] = drupal_render($element['destination']);
-      $row[] = drupal_render($element['triggers']);
-      $row[] = drupal_render($element['pages']);
-      $row[] = drupal_render($element['roles']);
+      $row[] = backdrop_render($element['destination']);
+      $row[] = backdrop_render($element['triggers']);
+      $row[] = backdrop_render($element['pages']);
+      $row[] = backdrop_render($element['roles']);
       $row[] = array(
-        'data' => drupal_render($element['enabled']),
+        'data' => backdrop_render($element['enabled']),
         'class' => array(
           'checkbox', 'login-destination-enabled',
         ),
@@ -148,7 +148,7 @@ function theme_login_destination_overview_form($variables) {
 
       $form[$ldid]['weight']['#attributes']['class'] = array('login-destination-weight');
 
-      $row[] = drupal_render($element['weight']);
+      $row[] = backdrop_render($element['weight']);
       $row = array_merge($row, $operations);
       $row = array_merge(array('data' => $row), array());
       $row['class'][] = 'draggable';
@@ -176,7 +176,7 @@ function theme_login_destination_overview_form($variables) {
 
   $output .= theme('table', $table_arguments);
 
-  $output .= drupal_render_children($form);
+  $output .= backdrop_render_children($form);
 
   return $output;
 }
@@ -202,7 +202,7 @@ function login_destination_overview_form_submit($form, &$form_state) {
     _login_destination_update_rules($login_destination_rule);
   }
 
-  drupal_set_message(t('Your configuration has been saved.'), 'status');
+  backdrop_set_message(t('Your configuration has been saved.'), 'status');
 }
 
 /**
@@ -493,7 +493,7 @@ function login_destination_edit_form_validate($form, &$form_state) {
   // Check user has enter any path.
   if (!empty($destination)) {
     $destination = preg_replace("/\?.+/", "", $destination);
-    if (!drupal_valid_path($destination)) {
+    if (!backdrop_valid_path($destination)) {
       form_set_error('destination', t('Incorrect path, Please Enter valid Path'));
     }
   }
@@ -508,13 +508,13 @@ function login_destination_edit_form_submit($form, &$form_state) {
   $form_state['values']['roles'] = serialize(array_filter($form_state['values']['roles']));
 
   if (empty($form_state['values']['id'])) {
-    drupal_write_record('login_destination', $form_state['values']);
+    backdrop_write_record('login_destination', $form_state['values']);
   }
   else {
-    drupal_write_record('login_destination', $form_state['values'], array('id'));
+    backdrop_write_record('login_destination', $form_state['values'], array('id'));
   }
 
-  drupal_set_message(t('Login destination to %destination has been saved.', array('%destination' => $form_state['values']['destination'])));
+  backdrop_set_message(t('Login destination to %destination has been saved.', array('%destination' => $form_state['values']['destination'])));
 
   $form_state['redirect'] = 'admin/config/people/login-destination';
 }
@@ -548,7 +548,7 @@ function login_destination_delete_form_submit($form, &$form_state) {
     ->condition('id', $rule['id'])
     ->execute();
 
-  drupal_set_message(t('The login destination %destination has been deleted.', array('%destination' => $rule['destination'])));
+  backdrop_set_message(t('The login destination %destination has been deleted.', array('%destination' => $rule['destination'])));
 
   $form_state['redirect'] = 'admin/config/people/login-destination';
 }
@@ -561,16 +561,34 @@ function login_destination_settings() {
 
   $form['settings']['login_destination_preserve_destination'] = array(
     '#type' => 'checkbox',
-    '#default_value' => variable_get('login_destination_preserve_destination', FALSE),
+    '#default_value' => config_get('login_destination.settings', 'preserve_destination'),
     '#title' => t('Preserve the destination parameter'),
     '#description' => t("The 'destination' GET parameter will have priority over the settings of this module. With this setting enabled, redirect from the user login block will not work."),
   );
   $form['settings']['login_destination_immediate_redirect'] = array(
     '#type' => 'checkbox',
-    '#default_value' => variable_get('login_destination_immediate_redirect', FALSE),
+    '#default_value' => config_get('login_destination.settings', 'immediate_redirect'),
     '#title' => t('Redirect immediately after using one-time login link'),
     '#description' => t("User will be redirected before given the possibility to change their password."),
   );
 
-  return system_settings_form($form);
+  $form['actions']['#type'] = 'actions';
+  $form['actions']['submit'] = array(
+    '#type'   => 'submit',
+    '#value'  => t('Save configuration'),
+  );
+
+  return $form;
+}
+
+/**
+ * Submit hanfler for the settings form.
+ */
+function login_destination_settings_submit($form, &$form_state) {
+  $config = config('login_destination.settings');
+  $values = $form_state['values'];
+
+  $config->set('preserve_destination', $values['login_destination_preserve_destination']);
+  $config->set('immediate_redirect', $values['login_destination_immediate_redirect']);
+  $config->save();
 }
