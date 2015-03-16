@@ -97,7 +97,7 @@ function login_destination_install() {
 /**
  * Migrate variables to config.
  */
-function custom_search_update_1000() {
+function login_destination_update_1000() {
   $config = config('login_destination.settings');
 
   $config->set('preserve_destination', update_variable_get('login_destination_preserve_destination', FALSE));
