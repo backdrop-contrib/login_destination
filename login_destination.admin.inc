@@ -582,7 +582,7 @@ function login_destination_settings() {
 }
 
 /**
- * Submit hanfler for the settings form.
+ * Submit handler for the settings form.
  */
 function login_destination_settings_submit($form, &$form_state) {
   $config = config('login_destination.settings');
