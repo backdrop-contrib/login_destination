@@ -489,9 +489,10 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
  */
 function login_destination_edit_form_validate($form, &$form_state) {
   $destination = $form_state['values']['destination'];
+ $destination_type = $form_state['values']['destination_type'];
 
   // Check user has enter any path.
-  if (!empty($destination)) {
+  if (!empty($destination) && $destination_type == 0) {
     $destination = preg_replace("/\?.+/", "", $destination);
     if (!drupal_valid_path($destination)) {
       form_set_error('destination', t('Incorrect path, Please Enter valid Path'));
