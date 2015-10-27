@@ -363,8 +363,8 @@ function login_destination_get_destination($trigger = '', $current = NULL) {
     ->execute()
     ->fetchAll();
 
-  if ($current == NULL) {
-    $current = $_GET['q'];
+  if ($current === NULL) {
+    $current = _login_destination_get_current($trigger);
   }
 
   // Examine path matches.
