@@ -31,6 +31,17 @@ function login_destination_help($path, $arg) {
 }
 
 /**
+ * Implements hook_permission().
+ */
+function login_destination_permission() {
+  return array(
+    'administer login destination settings' => array(
+      'title' => t('Administer Login Destination settings'),
+    ),
+  );
+}
+
+/**
  * Implements hook_menu().
  */
 function login_destination_menu() {
@@ -39,7 +50,7 @@ function login_destination_menu() {
     'description' => 'Customize the destination that the user is redirected to after login.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_overview_form'),
-    'access arguments' => array('administer users'),
+    'access arguments' => array('administer login destination settings'),
     'file' => 'login_destination.admin.inc',
     'weight' => 10,
   );
@@ -47,7 +58,7 @@ function login_destination_menu() {
     'title' => 'Add login destination rule',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_edit_form'),
-    'access arguments' => array('administer users'),
+    'access arguments' => array('administer login destination settings'),
     'type' => MENU_LOCAL_ACTION,
     'weight' => 1,
     'file' => 'login_destination.admin.inc',
@@ -56,14 +67,14 @@ function login_destination_menu() {
     'title' => 'Edit login destination rule',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_edit_form', 5),
-    'access arguments' => array('administer users'),
+    'access arguments' => array('administer login destination settings'),
     'file' => 'login_destination.admin.inc',
   );
   $items['admin/config/people/login-destination/delete/%login_destination'] = array(
     'title' => 'Delete login destination rule',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_delete_form', 5),
-    'access arguments' => array('administer users'),
+    'access arguments' => array('administer login destination settings'),
     'file' => 'login_destination.admin.inc',
   );
   $items['admin/config/people/login-destination/list'] = array(
@@ -76,7 +87,7 @@ function login_destination_menu() {
     'description' => 'Change Login Destination settings.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('login_destination_settings'),
-    'access arguments' => array('administer users'),
+    'access arguments' => array('administer login destination settings'),
     'type' => MENU_LOCAL_TASK,
     'file' => 'login_destination.admin.inc',
     'weight' => 10,
