@@ -1,5 +1,6 @@
 name = Login Destination
 description = Customize the destination that the user is redirected to after login.
 backdrop = 1.x
+version = 1.x-1.0.1
 configure = admin/config/people/login-destination
 type = module
