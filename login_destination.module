@@ -249,7 +249,11 @@ function login_destination_translated_menu_link_alter(&$item, $map) {
   if ($item['link_path'] == 'user/logout' ||
     (in_array($item['link_path'], $paths) && user_is_anonymous())
   ) {
-    $item['localized_options']['query'] = array('current' => $_GET['q']);
+    $current = $_GET['q'];
+    if ($current == '<front>') {
+      $current = '';
+    }
+    $item['localized_options']['query'] = array('current' => $current);
   }
 }
 
