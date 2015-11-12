@@ -169,15 +169,19 @@ function login_destination_update_7001() {
 }
 
 /**
- * Enable new permissions by default for roles which have access administer
- * users.
+ * Automatically give all roles with permission "Administer Users" the new dedicated permission
+ * "Administer Login Destination settings".
  */
-function login_destination_update_7002() {
-  drupal_set_message(t('Login Destination module has been updated.
-  Now module has own permissions for managing module configuration.
-  Go to Permissions page and set permission for needed roles.
-  By default all roles, which have access administer users, have possibility
-  manage module configuration.'));
+function login_destination_update_7003() {
+  drupal_set_message(t('The Login Destination module has just been updated.<br>
+  A new permission called "Administer Login Destination settings" has now been
+  added.<br>Previously the access to the Login Destination\'s settings page was
+  managed by the "Administer Users" permission.<br>That\'s why all roles with
+  that old permission have been just automatically given the new dedicated
+  "Administer Login Destination settings" permission.<br>If you want to
+  duoble-check things, you can go to the
+  <a href="/admin/people/permissions" title="Permissions page" >Permissions page</a> now.'));
+
   $roles = user_roles(TRUE, 'administer users');
   foreach ($roles as $rid => $role_name) {
     user_role_grant_permissions($rid, array('administer login destination settings'));
