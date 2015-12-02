@@ -502,7 +502,8 @@ function login_destination_edit_form_validate($form, &$form_state) {
   $destination_type = $form_state['values']['destination_type'];
 
   // Check user has enter any path.
-  if (empty($destination) || $destination_type != 0) {
+  $available_urls = array('<current>', '<front>');
+  if (empty($destination) || $destination_type != 0 || in_array($destination, $available_urls)) {
     return;
   }
   $destination = preg_replace("/\?.+/", "", $destination);
@@ -527,6 +528,10 @@ function login_destination_edit_form_validate($form, &$form_state) {
     form_set_error('destination', t('Incorrect path, please enter a valid path'));
   }
   $item_access = unserialize($item['access_arguments']);
+  if (!$item_access) {
+    form_set_error('destination', t('Incorrect path, please enter a valid path'));
+    return;
+  }
   $role_permissions = user_role_permissions($roles);
   foreach ($role_permissions as $key => $role) {
     $permissions = array_keys($role);
