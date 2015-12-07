@@ -263,7 +263,7 @@ function login_destination_translated_menu_link_alter(&$item, $map) {
 function login_destination_page_alter(&$page) {
   // Substitute toolbar's pre_render function to change links.
   if (isset($page['page_top']['toolbar']['#pre_render'])) {
-    $page['page_top']['toolbar']['#pre_render'][0] = 'login_destination_toolbar_pre_render';
+    $page['page_top']['toolbar']['#pre_render'][] = 'login_destination_toolbar_pre_render';
   }
 }
 
@@ -271,7 +271,6 @@ function login_destination_page_alter(&$page) {
  * Helper function to change toolbar's links.
  */
 function login_destination_toolbar_pre_render($toolbar) {
-  $toolbar = toolbar_pre_render($toolbar);
   // Add current param to be able to evaluate previous page.
   $toolbar['toolbar_user']['#links']['logout']['query'] = array('current' => $_GET['q']);
 
