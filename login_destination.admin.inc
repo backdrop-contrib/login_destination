@@ -535,8 +535,7 @@ function login_destination_edit_form_validate($form, &$form_state) {
   $role_permissions = user_role_permissions($roles);
   foreach ($role_permissions as $key => $role) {
     $permissions = array_keys($role);
-    $intersection = array_intersect($permissions, $item_access);
-    if (empty($intersection)) {
+    if (empty(array_intersect($permissions, $item_access))) {
       $user_role = user_role_load($key);
       form_set_error('destination', t('Role "@role_name" does not have access to the path.', array('@role_name' => $user_role->name)));
       break;
