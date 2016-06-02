@@ -103,7 +103,7 @@ function login_destination_install() {
  */
 function login_destination_uninstall() {
   variable_del('login_destination_preserve_destination');
-  variable_del('login_destination_profile_redirect');
+  variable_del('login_destination_immediate_redirect');
 }
 
 /**
