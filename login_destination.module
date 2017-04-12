@@ -436,7 +436,8 @@ function _login_destination_get_current($trigger = '') {
     return check_plain($_GET['current']);
   }
 
-  if ($trigger == 'login') {
+  $menu_item = menu_get_item();
+  if ($trigger == 'login' && $menu_item['path'] != 'user/reset/%/%/%') {
     return $_GET['q'];
   }
 
