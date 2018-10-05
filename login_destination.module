@@ -463,9 +463,15 @@ function _login_destination_match_rule($rule, $trigger = '', $current = NULL) {
   if (!(empty($triggers) || array_key_exists($trigger, $triggers))) {
     return FALSE;
   }
+  
+  // Add roles as keys so `array_intersect_key` works below.
+  $userroles = array();
+  foreach ($user->roles as $role) {
+    $userroles[$role] = $role;
+  }
 
   // Examine role matches.
-  $roles_intersect = array_intersect_key($roles, $user->roles);
+  $roles_intersect = array_intersect_key($roles, $userroles);
 
   if (!empty($roles) && empty($roles_intersect)) {
     return FALSE;
