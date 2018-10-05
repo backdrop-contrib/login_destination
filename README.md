@@ -65,7 +65,7 @@ Take the user to the default page:
 ```
 
 It also possible to set some advanced parameters on the setting page. Every
-time in Drupal you can specify the 'destination' GET parameter in url to
+time in Backdrop you can specify the 'destination' GET parameter in url to
 redirect the user to a custom page. If you check the option
 'Preserve the destination parameter' Login Destination will give priority to
 this parameter over its own module settings. However with this option enabled
@@ -81,9 +81,11 @@ complete text.
 
 ## Current Maintainers
 
--   Jerome Danthinne (https://github.com/jdanthinne/)
+* [Laryn Kragt Bakker](https://github.com/laryn) - [CEDC.org](https://cedc.org)
 
 ## Credits
+This module was ported to Backdrop by:
+* Jerome Danthinne (https://github.com/jdanthinne/)
 
 This module was originally maintained for Drupal by:
 * Moshe Weitzman <weitzman AT tejasa DOT com>
