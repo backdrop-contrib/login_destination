@@ -169,18 +169,11 @@ function login_destination_form_alter(&$form, &$form_state, $form_id) {
     case 'user_login':
       $form['#validate'][] = 'login_destination_validate';
       break;
-  }
 
-  switch ($form_id) {
     // One-time login, password reset.
-    case 'user_profile_form':
-      if (isset($_GET['pass-reset-token'])) {
-        // Redirect only from user_pass_reset
-        // You have to explicitally turn on the option to always redirect from
-        // the profile page. This is for constistency.
-        $form['#submit'][] = 'login_destination_submit';
-        break;
-      }
+    case 'user_pass_reset_form':
+      $form['#submit'][] = 'login_destination_submit';
+      break;
   }
 }
 
@@ -419,9 +412,8 @@ function _login_destination_get_current($trigger = '') {
   if (isset($_GET['current'])) {
     return check_plain($_GET['current']);
   }
-
   $menu_item = menu_get_item();
-  if ($trigger == 'login' && $menu_item['path'] != 'user/reset/%/%/%') {
+  if ($trigger == 'login') {
     return $_GET['q'];
   }
 

@@ -139,6 +139,18 @@ function login_destination_update_1001() {
 }
 
 /**
+ * Remove the immediate login on one-time redirect setting. Backdrop simplifies
+ * the one-time login process (it's now one page instead of two) and this
+ * setting is not needed anymore.
+ * 
+ */
+
+function login_destination_update_1002() {
+  $config = config('login_destination.settings');
+  $config->delete('immediate_redirect');
+}
+
+/**
  * Implements hook_update_last_removed().
  */
 function login_destination_update_last_removed() {

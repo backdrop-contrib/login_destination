@@ -578,12 +578,6 @@ function login_destination_settings() {
     '#title' => t('Preserve the destination parameter'),
     '#description' => t("The 'destination' GET parameter will have priority over the settings of this module. With this setting enabled, redirect from the user login block will not work."),
   );
-  $form['settings']['login_destination_immediate_redirect'] = array(
-    '#type' => 'checkbox',
-    '#default_value' => config_get('login_destination.settings', 'immediate_redirect'),
-    '#title' => t('Redirect immediately after using one-time login link'),
-    '#description' => t("User will be redirected before given the possibility to change their password."),
-  );
 
   $form['actions']['#type'] = 'actions';
   $form['actions']['submit'] = array(
@@ -602,6 +596,5 @@ function login_destination_settings_submit($form, &$form_state) {
   $values = $form_state['values'];
 
   $config->set('preserve_destination', $values['login_destination_preserve_destination']);
-  $config->set('immediate_redirect', $values['login_destination_immediate_redirect']);
   $config->save();
 }
