@@ -81,7 +81,11 @@ function login_destination_schema() {
 function login_destination_install() {
   // Update the alter option of 'user/logout' to TRUE,
   // (menu_save invokes necessary hooks).
-  $result = db_query("SELECT mlid, menu_name FROM {menu_links} WHERE link_path = 'user/logout' OR link_path = 'user/login' OR  link_path = 'user' ORDER BY mlid ASC");
+  $result = db_query("
+    SELECT mlid, menu_name
+    FROM {menu_links}
+    WHERE link_path = 'user/logout' OR link_path = 'user/login' OR  link_path = 'user'
+    ORDER BY mlid ASC");
   foreach ($result as $res) {
     $item = menu_link_load($res->mlid);
     $item['options']['alter'] = TRUE;
@@ -99,7 +103,6 @@ function login_destination_install() {
  */
 function login_destination_update_1000() {
   $config = config('login_destination.settings');
-
   $config->set('preserve_destination', update_variable_get('login_destination_preserve_destination', FALSE));
   $config->set('immediate_redirect', update_variable_get('login_destination_immediate_redirect', FALSE));
 
@@ -110,8 +113,34 @@ function login_destination_update_1000() {
 }
 
 /**
+ * Updates from the Drupal module (7002 and 7003).
+ *
+ * Clear hooks cache.
+ *
+ * Automatically give all roles with permission "Administer Users" the new 
+ * dedicated permission "Administer Login Destination settings".
+ */
+function login_destination_update_1001() {
+  cache_clear_all('hook_info', 'cache_bootstrap');
+  backdrop_set_message(t('The Login Destination module has just been updated.<br>
+  A new permission called "Administer Login Destination settings" has now been
+  added.<br>Previously the access to the Login Destination\'s settings page was
+  managed by the "Administer Users" permission.<br>That\'s why all roles with
+  that old permission have been just automatically given the new dedicated
+  "Administer Login Destination settings" permission.<br>If you want to
+  double-check things, you can go to the
+  <a href="/admin/config/people/permissions" title="Permissions page">
+  Permissions page</a> now.'));
+
+  $roles = user_roles(TRUE, 'administer users');
+  foreach ($roles as $rid => $role_name) {
+    user_role_grant_permissions($rid, array('administer login destination settings'));
+  }
+}
+
+/**
  * Implements hook_update_last_removed().
  */
 function login_destination_update_last_removed() {
-  return 7001;
+  return 7003;
 }

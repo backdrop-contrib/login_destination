@@ -11,7 +11,6 @@
  * Shows list of all login destination.
  */
 function login_destination_overview_form($form, &$form_state) {
-
   // Get all login destination rules from the database.
   $result = db_select('login_destination', 'l')
     ->fields('l', array(
@@ -23,8 +22,7 @@ function login_destination_overview_form($form, &$form_state) {
       'destination',
       'weight',
       'enabled',
-      )
-    )
+    ))
     ->orderBy('weight')
     ->execute()
     ->fetchAll();
@@ -33,7 +31,6 @@ function login_destination_overview_form($form, &$form_state) {
 
   // Loop through the categories and add them to the table.
   foreach ($result as $data) {
-
     $triggers = array_map('check_plain', unserialize($data->triggers));
     if (empty($triggers)) {
       $triggers = array();
@@ -46,7 +43,10 @@ function login_destination_overview_form($form, &$form_state) {
 
     $form[$data->id]['destination']['#markup'] = theme('login_destination_destination', array('destination' => $data->destination));
     $form[$data->id]['triggers']['#markup'] = theme('login_destination_triggers', array('items' => $triggers));
-    $form[$data->id]['pages']['#markup'] = theme('login_destination_pages', array('pages' => $data->pages, 'pages_type' => $data->pages_type));
+    $form[$data->id]['pages']['#markup'] = theme('login_destination_pages', array(
+      'pages' => $data->pages,
+      'pages_type' => $data->pages_type,
+    ));
     $form[$data->id]['roles']['#markup'] = theme('login_destination_roles', array('items' => $roles));
 
     $form[$data->id]['weight'] = array(
@@ -77,9 +77,7 @@ function login_destination_overview_form($form, &$form_state) {
       '#title' => t('delete'),
       '#href' => 'admin/config/people/login-destination/delete/' . $data->id,
     );
-
     $form[$data->id]['operations'] = $operations;
-
   }
 
   if (element_children($form)) {
@@ -104,6 +102,8 @@ function login_destination_overview_form($form, &$form_state) {
  *   - form: A render element representing the form.
  *
  * @ingroup themeable
+ *
+ * @return string
  */
 function theme_login_destination_overview_form($variables) {
   $form = $variables['form'];
@@ -122,38 +122,42 @@ function theme_login_destination_overview_form($variables) {
 
   $rows = array();
   foreach (element_children($form) as $ldid) {
-    if (isset($form[$ldid]['enabled'])) {
-
-      $element = &$form[$ldid];
-
-      $operations = array();
-      foreach (element_children($element['operations']) as $op) {
-        $operations[] = array('data' => backdrop_render($element['operations'][$op]), 'class' => array('login-destination-operations'));
-      }
-      while (count($operations) < 2) {
-        $operations[] = '';
-      }
-
-      $row = array();
-      $row[] = backdrop_render($element['destination']);
-      $row[] = backdrop_render($element['triggers']);
-      $row[] = backdrop_render($element['pages']);
-      $row[] = backdrop_render($element['roles']);
-      $row[] = array(
-        'data' => backdrop_render($element['enabled']),
-        'class' => array(
-          'checkbox', 'login-destination-enabled',
-        ),
-      );
-
-      $form[$ldid]['weight']['#attributes']['class'] = array('login-destination-weight');
-
-      $row[] = backdrop_render($element['weight']);
-      $row = array_merge($row, $operations);
-      $row = array_merge(array('data' => $row), array());
-      $row['class'][] = 'draggable';
-      $rows[] = $row;
+    if (!isset($form[$ldid]['enabled'])) {
+      continue;
     }
+    $element = &$form[$ldid];
+    $operations = array();
+
+    foreach (element_children($element['operations']) as $op) {
+      $operations[] = array(
+        'data' => backdrop_render($element['operations'][$op]),
+        'class' => array('login-destination-operations'),
+      );
+    }
+    while (count($operations) < 2) {
+      $operations[] = '';
+    }
+
+    $row = array();
+    $row[] = backdrop_render($element['destination']);
+    $row[] = backdrop_render($element['triggers']);
+    $row[] = backdrop_render($element['pages']);
+    $row[] = backdrop_render($element['roles']);
+    $row[] = array(
+      'data' => backdrop_render($element['enabled']),
+      'class' => array(
+        'checkbox',
+        'login-destination-enabled',
+      ),
+    );
+
+    $form[$ldid]['weight']['#attributes']['class'] = array('login-destination-weight');
+
+    $row[] = backdrop_render($element['weight']);
+    $row = array_merge($row, $operations);
+    $row = array_merge(array('data' => $row), array());
+    $row['class'][] = 'draggable';
+    $rows[] = $row;
   }
 
   $output = '';
@@ -175,7 +179,6 @@ function theme_login_destination_overview_form($variables) {
   );
 
   $output .= theme('table', $table_arguments);
-
   $output .= backdrop_render_children($form);
 
   return $output;
@@ -220,15 +223,20 @@ function login_destination_overview_form_submit($form, &$form_state) {
  */
 function _login_destination_update_rules($login_destination_rule) {
 
-  if (!(isset($login_destination_rule['enabled']) && isset($login_destination_rule['weight']) && isset($login_destination_rule['ldid']))) {
+  if (!(isset($login_destination_rule['enabled']) &&
+    isset($login_destination_rule['weight']) &&
+    isset($login_destination_rule['ldid']))
+  ) {
     return FALSE;
   }
 
-  if ($login_destination_rule['enabled'] != 0 && $login_destination_rule['enabled'] != 1) {
+  if ($login_destination_rule['enabled'] != 0 &&
+    $login_destination_rule['enabled'] != 1
+  ) {
     return FALSE;
   }
 
-  $login_destination_rule['weight'] = intval($login_destination_rule['weight']);
+  $login_destination_rule['weight'] = (int) $login_destination_rule['weight'];
 
   if (!is_int($login_destination_rule['weight'])) {
     return FALSE;
@@ -367,21 +375,20 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
       LOGIN_DESTINATION_STATIC => t('Internal page or external URL'),
     );
     $description = t("Specify page by using its path. Example path is %blog for the blog page. %front is the front page. %current is the current page. Precede with http:// for an external URL. Leave empty to redirect to a default page.", array(
-        '%blog' => 'blog',
-        '%front' => '<front>',
-        '%current' => '<current>',
-      )
-    );
+      '%blog' => 'blog',
+      '%front' => '<front>',
+      '%current' => '<current>',
+    ));
 
-    if (module_exists('php') && $access) {
+    if ($access && module_exists('php')) {
       $options += array(LOGIN_DESTINATION_SNIPPET => t('Page returned by this PHP code (experts only)'));
-      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array of params that the %function function will understand, for example. %example. For more information, see the online API entry for <a href="@url">url function</a>. Note that executing incorrect PHP code can break your Drupal site.', array(
+      $description .= ' ' .
+        t('If the PHP option is chosen, enter PHP code between %php. It should return either a string value or an array of params that the %function function will understand, for example. %example. For more information, see the online API entry for <a href="@url">url function</a>. Note that executing incorrect PHP code can break your site.', array(
           '%php' => '<?php ?>',
           '%function' => 'url($path = \'\', array $options = array())',
           '%example' => '<?php return array(\'blog\', array(\'fragment\' => \'overlay=admin/config\', ), ); ?>',
-          '@url' => 'http://api.drupal.org/api/drupal/includes--common.inc/function/url/7',
-        )
-      );
+          '@url' => 'https://api.backdropcms.org/api/backdrop/core%21includes%21common.inc/function/url/1',
+        ));
     }
 
     $form['destination_type'] = array(
@@ -405,7 +412,10 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
   $form['triggers'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Redirect upon triggers'),
-    '#options' => array('login' => t('Login, registration, one-time login link'), 'logout' => t('Logout')),
+    '#options' => array(
+      'login' => t('Login, registration, one-time login link'),
+      'logout' => t('Logout'),
+    ),
     '#default_value' => $triggers,
     '#description' => t('Redirect only upon selected trigger(s). If you select no triggers, all of them will be used.'),
   );
@@ -428,18 +438,18 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
       LOGIN_DESTINATION_REDIRECT_LISTED => t('Only the listed pages'),
     );
     $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page. %login is the login form. %register is the registration form. %reset is the one-time login (e-mail validation).", array(
-        '%blog' => 'blog',
-        '%blog-wildcard' => 'blog/*',
-        '%front' => '<front>',
-        '%login' => 'user',
-        '%register' => 'user/register',
-        '%reset' => 'user/*/edit',
-      )
-    );
+      '%blog' => 'blog',
+      '%blog-wildcard' => 'blog/*',
+      '%front' => '<front>',
+      '%login' => 'user',
+      '%register' => 'user/register',
+      '%reset' => 'user/*/edit',
+    ));
 
-    if (module_exists('php') && $access) {
+    if ($access && module_exists('php')) {
       $options += array(LOGIN_DESTINATION_REDIRECT_PHP => t('Pages on which this PHP code returns <code>TRUE</code> (experts only)'));
-      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>'));
+      $description .= ' ' .
+        t('If the PHP option is chosen, enter PHP code between %php. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>'));
     }
 
     $form['pages_type'] = array(
@@ -489,15 +499,25 @@ function login_destination_edit_form($form, &$form_state, array $rule = array())
  */
 function login_destination_edit_form_validate($form, &$form_state) {
   $destination = $form_state['values']['destination'];
+  $destination_type = $form_state['values']['destination_type'];
 
   // Check user has enter any path.
-  if (!empty($destination)) {
-    $destination = preg_replace("/\?.+/", "", $destination);
-    if (!backdrop_valid_path($destination)) {
-      form_set_error('destination', t('Incorrect path, Please Enter valid Path'));
-    }
+  $available_urls = array('<current>', '<front>');
+  if (empty($destination) || $destination_type != 0 || in_array($destination, $available_urls)) {
+    return;
   }
-
+  $destination = preg_replace("/\?.+/", "", $destination);
+  if (url_is_external($destination)) {
+    return;
+  }
+  // Get source path if an alias entered.
+  $source_path = backdrop_lookup_path('source', $destination);
+  if (!empty($source_path)) {
+    $destination = $source_path;
+  }
+  if (!backdrop_valid_path($destination)) {
+    form_set_error('destination', t('Incorrect path, please enter a valid path.'));
+  }
 }
 
 /**
@@ -528,14 +548,7 @@ function login_destination_delete_form($form, &$form_state, array $rule) {
     '#value' => $rule,
   );
 
-  return confirm_form(
-    $form,
-    t('Are you sure you want to delete the login destination %destination ?', array('%destination' => $rule['destination'])),
-    'admin/config/people/login-destination',
-    t('This action cannot be undone.'),
-    t('Delete'),
-    t('Cancel')
-  );
+  return confirm_form($form, t('Are you sure you want to delete the login destination %destination ?', array('%destination' => $rule['destination'])), 'admin/config/people/login-destination', t('This action cannot be undone.'), t('Delete'), t('Cancel'));
 }
 
 /**
