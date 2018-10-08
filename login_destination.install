@@ -147,7 +147,7 @@ function login_destination_update_1001() {
 
 function login_destination_update_1002() {
   $config = config('login_destination.settings');
-  $config->delete('immediate_redirect');
+  $config->clear('immediate_redirect');
 }
 
 /**
