@@ -1,4 +1,4 @@
-# Login Destination
+# ![Login Destination](https://github.com/backdrop-contrib/login_destination/blob/1.x-1.x/images/login_destination.png "Login Destination for BackdropCMS")
 
 The Login Destination module allows you to customize the destination that a user
 is redirected to after logging in, registering to the site, using a one-time
