@@ -67,17 +67,20 @@ function login_destination_overview_form($form, &$form_state) {
     // Build a list of operations.
     $operations = array();
     $operations['edit'] = array(
-      '#type' => 'link',
-      '#title' => t('edit'),
-      '#href' => 'admin/config/people/login-destination/edit/' . $data->id,
+      'title' => t('edit'),
+      'href' => 'admin/config/people/login-destination/edit/' . $data->id,
     );
 
     $operations['delete'] = array(
-      '#type' => 'link',
-      '#title' => t('delete'),
-      '#href' => 'admin/config/people/login-destination/delete/' . $data->id,
+      'title' => t('delete'),
+      'href' => 'admin/config/people/login-destination/delete/' . $data->id,
     );
-    $form[$data->id]['operations'] = $operations;
+    $form[$data->id]['operations'] = array(
+      'data' => array(
+        '#type' => 'dropbutton',
+        '#links' => $operations,
+      ),
+    );
   }
 
   if (element_children($form)) {
